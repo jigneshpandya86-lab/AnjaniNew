@@ -70,22 +70,22 @@ const GAS = {
 
   async getLeadsData() {
     const snap = await getDocs(collection(db, 'leads'));
-    return JSON.stringify({ leads: snap.docs.map(d => ({ id: d.id, ...d.data() })) });
+    return JSON.stringify(snap.docs.map(d => ({ id: d.id, ...d.data() })));
   },
 
   async getStockData() {
     const snap = await getDocs(collection(db, 'stock'));
-    return JSON.stringify({ stock: snap.docs.map(d => ({ id: d.id, ...d.data() })) });
+    return JSON.stringify(snap.docs.map(d => ({ id: d.id, ...d.data() })));
   },
 
   async getPaymentsData() {
     const snap = await getDocs(collection(db, 'payments'));
-    return JSON.stringify({ payments: snap.docs.map(d => ({ id: d.id, ...d.data() })) });
+    return JSON.stringify(snap.docs.map(d => ({ id: d.id, ...d.data() })));
   },
 
   async getJobsData() {
     const snap = await getDocs(collection(db, 'jobs'));
-    return JSON.stringify({ jobs: snap.docs.map(d => ({ id: d.id, ...d.data() })) });
+    return JSON.stringify(snap.docs.map(d => ({ id: d.id, ...d.data() })));
   },
 
   async saveOrder(data) {
