@@ -38,6 +38,9 @@ jobs:
       - name: Sync Capacitor
         run: npx cap sync android
 
+      - name: Patch AndroidManifest — add permissions
+        run: python3 patch-manifest.py
+
       - name: Cache Gradle
         uses: actions/cache@v4
         with:
