@@ -2172,7 +2172,7 @@ if (!txt) return;
     if (!data || data.error) { addBubble("⚠️ "+(data?data.error:"AI returned no data"), 'ai'); return; }
     const intent = (data.intent||"ANSWER").toUpperCase();
     if (intent === 'ANSWER') addBubble(data.reply, 'ai');
-    else if (intent === 'RUN_SCRIPT') { addBubble(data.reply||"🤖 Executing...", 'ai'); try { eval(data.script); } catch(e) { addBubble("⚠️ Error: "+e.message, 'ai', false); } }
+    else if (intent === 'RUN_SCRIPT') { addBubble("⚠️ Script execution is disabled for security reasons.", 'ai', false); }
     else if (intent === 'ADD_RULE') {
       addBubble("🧠 Writing new rule: **"+data.topic+"**...", 'ai');
       google.script.run.withSuccessHandler(res => addBubble(res==="SUCCESS"?"✅ Learned! Say 'refresh' to reload my brain.":"⚠️ Failed: "+res, 'ai', false)).saveNewRuleToBrain(data.topic, data.instruction, data.actionId);
