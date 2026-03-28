@@ -163,9 +163,14 @@ const GAS = {
 
   async saveProduction(data) {
     const d = typeof data === 'string' ? JSON.parse(data) : data;
-    d.date = d.date || todayIST();
-    d.delivered = d.delivered !== undefined ? d.delivered : 0;
-    await addDoc(collection(db, 'stock'), d);
+    // Frontend sends { qty, sku } — map to { produced, sku }
+    const produced = Number(d.qty || d.produced) || 0;
+    await addDoc(collection(db, 'stock'), {
+      date:     d.date || todayIST(),
+      produced: produced,
+      delivered: 0,
+      sku:      d.sku || '200ml'
+    });
     return JSON.stringify({ success: true });
   },
 
@@ -299,22 +304,43 @@ const GAS = {
   async getDashboardMetrics() {
     const DB = window.DB || {};
     const customers = DB.customers || [];
-    const orders = DB.orders || [];
-    const stock = DB.stock || [];
-    const todayStr = todayIST();
+    const orders    = DB.orders    || [];
+    const payments  = DB.payments  || [];
+    const stock     = DB.stock     || [];
 
+    const todayStr = todayIST();
+    const now = new Date();
+    const weekAgo  = new Date(now); weekAgo.setDate(weekAgo.getDate() - 7);
+    const monthAgo = new Date(now); monthAgo.setDate(monthAgo.getDate() - 30);
+    const weekStr  = weekAgo.toISOString().split('T')[0];
+    const monthStr = monthAgo.toISOString().split('T')[0];
+
+    function periodMetrics(fromStr) {
+      const ords = orders.filter(o => o.status === 'Delivered' && (o.deliveryDate || '') >= fromStr);
+      const pays = payments.filter(p => (p.date || '') >= fromStr);
+      const stk  = stock.filter(s => (s.date || '') >= fromStr);
+      return {
+        orders: ords.length,
+        box:    ords.reduce((s, o) => s + (Number(o.boxes) || 0), 0),
+        prod:   stk.reduce((s, r)  => s + (Number(r.produced) || 0), 0),
+        rev:    ords.reduce((s, o) => s + (Number(o.amount) || 0), 0),
+        col:    pays.reduce((s, p) => s + (Number(p.amount) || 0), 0)
+      };
+    }
+
+    const netStock = stock.reduce((s, r) => s + (Number(r.produced) || 0) - (Number(r.delivered) || 0), 0);
     const totalOutstanding = customers.reduce((s, c) => s + (Number(c.outstanding) || 0), 0);
-    const todayOrders = orders.filter(o => o.deliveryDate === todayStr);
-    const todayStock = stock.filter(s => s.date === todayStr);
-    const totalProduced = todayStock.reduce((s, r) => s + (Number(r.produced) || 0), 0);
-    const totalDelivered = todayStock.reduce((s, r) => s + (Number(r.delivered) || 0), 0);
+    const pendingOrders = orders.filter(o => o.status === 'Pending' || o.status === 'Processing').length;
 
     return JSON.stringify({
-      totalOutstanding,
-      todayOrderCount: todayOrders.length,
-      todayProduced: totalProduced,
-      todayDelivered: totalDelivered,
-      activeCustomers: customers.filter(c => c.active).length
+      TODAY: periodMetrics(todayStr),
+      WEEK:  periodMetrics(weekStr),
+      MONTH: periodMetrics(monthStr),
+      STATUS: {
+        pending:     pendingOrders,
+        outstanding: totalOutstanding,
+        stock:       netStock
+      }
     });
   },
 
