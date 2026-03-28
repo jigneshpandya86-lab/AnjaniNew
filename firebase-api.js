@@ -5,7 +5,7 @@ import {
   query, where, setDoc, runTransaction, writeBatch
 } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
 import {
-  GoogleAuthProvider, signInWithPopup, onAuthStateChanged, browserLocalPersistence, setPersistence
+  GoogleAuthProvider, signInWithPopup, onAuthStateChanged, browserLocalPersistence, setPersistence, signOut
 } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
 
 const MACRO_URL = 'https://trigger.macrodroid.com/c54612db-2ff7-4ff5-ac00-e428c1011e31/anjani_sms';
@@ -421,6 +421,8 @@ window.google = {
 //   1. Authentication → Sign-in methods → Enable "Google"
 //   2. Authentication → Settings → Authorized domains → Add "jigneshpandya86-lab.github.io"
 
+const ALLOWED_EMAILS = ['jigneshpandya86@gmail.com'];
+
 function hideLoginScreen() {
   const screen = document.getElementById('login-screen');
   if (!screen || screen.style.display === 'none') return;
@@ -450,8 +452,18 @@ window.signInWithGoogle = async function() {
 };
 
 // Auto-hide login screen if already authenticated (Google) or PIN session active
-onAuthStateChanged(auth, (user) => {
-  if (user || localStorage.getItem('anjani_app_access') === 'true') {
+onAuthStateChanged(auth, async (user) => {
+  if (user) {
+    if (ALLOWED_EMAILS.includes(user.email)) {
+      hideLoginScreen();
+    } else {
+      // Not an allowed user — sign out and show error
+      await signOut(auth);
+      const errEl = document.getElementById('google-signin-error');
+      if (errEl) { errEl.textContent = '⛔ Access denied. This app is private.'; errEl.classList.remove('hidden'); }
+      console.warn('[Auth] Blocked sign-in from:', user.email);
+    }
+  } else if (localStorage.getItem('anjani_app_access') === 'true') {
     hideLoginScreen();
   }
 });
