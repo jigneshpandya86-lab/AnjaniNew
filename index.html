@@ -25,6 +25,7 @@
     "imports": {
       "firebase/app":       "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js",
       "firebase/firestore": "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js",
+      "firebase/auth":      "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js",
       "dexie":              "https://esm.sh/dexie@4",
       "@sentry/browser":    "https://esm.sh/@sentry/browser@8"
     }
@@ -676,14 +677,31 @@
 <!-- ===== LOGIN SCREEN ===== -->
 <div id="login-screen" class="fixed inset-0 z-[10000] flex flex-col items-center justify-center text-center" style="background:linear-gradient(160deg,#0c4a6e 0%,#0369a1 50%,#0ea5e9 100%)">
   <div class="p-8 rounded-3xl w-80" id="login-card" style="background:rgba(255,255,255,0.95);backdrop-filter:blur(20px);box-shadow:0 20px 60px rgba(12,74,110,0.3),0 0 0 1px rgba(255,255,255,0.5)">
-    <div class="mb-6"><div class="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto shadow-lg"><span class="text-3xl">🔒</span></div></div>
-    <h2 class="text-2xl font-bold text-slate-800 mb-2">Anjani Water</h2>
-    <p class="text-slate-500 text-sm mb-6">Enter PIN to access dashboard</p>
+    <div class="mb-6"><div class="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto shadow-lg"><span class="text-3xl">💧</span></div></div>
+    <h2 class="text-2xl font-bold text-slate-800 mb-1">Anjani Water</h2>
+    <p class="text-slate-500 text-sm mb-6">Sign in to access dashboard</p>
+
+    <!-- Google Sign-In -->
+    <button id="btn-google-login" onclick="handleGoogleLogin()"
+      class="w-full flex items-center justify-center gap-3 bg-white border-2 border-slate-200 text-slate-700 font-bold text-sm py-3 rounded-xl shadow-md active:scale-95 transition-transform mb-4 hover:border-blue-400 hover:shadow-lg">
+      <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.08 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-3.59-13.46-8.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+      Sign in with Google
+    </button>
+
+    <!-- Divider -->
+    <div class="flex items-center gap-3 mb-4">
+      <div class="flex-1 h-px bg-slate-200"></div>
+      <span class="text-xs text-slate-400 font-medium">or use PIN</span>
+      <div class="flex-1 h-px bg-slate-200"></div>
+    </div>
+
+    <!-- PIN login -->
     <input type="text" id="pin-input" maxlength="4" inputmode="numeric" placeholder="0000" autocomplete="off"
-      class="w-full text-center text-4xl font-black tracking-[0.5em] border-b-4 border-slate-200 focus:border-blue-600 rounded-none py-4 mb-6 focus:outline-none transition-all text-slate-800 placeholder-slate-200"
+      class="w-full text-center text-4xl font-black tracking-[0.5em] border-b-4 border-slate-200 focus:border-blue-600 rounded-none py-4 mb-4 focus:outline-none transition-all text-slate-800 placeholder-slate-200"
       onkeypress="if(event.key==='Enter') handleLogin()">
-    <button id="btn-login" onclick="handleLogin()" class="w-full bg-slate-900 text-white font-bold text-lg py-4 rounded-xl shadow-lg active:scale-95 transition-transform">VERIFY ACCESS 🔒</button>
-    <p id="pin-error" class="mt-4 text-red-500 text-xs font-bold h-5 opacity-0 transition-opacity">⛔ INCORRECT PIN</p>
+    <button id="btn-login" onclick="handleLogin()" class="w-full bg-slate-900 text-white font-bold text-lg py-3 rounded-xl shadow-lg active:scale-95 transition-transform">VERIFY PIN 🔒</button>
+    <p id="pin-error" class="mt-3 text-red-500 text-xs font-bold h-5 opacity-0 transition-opacity">⛔ INCORRECT PIN</p>
+    <p id="google-error" class="mt-1 text-red-500 text-xs font-bold h-5 opacity-0 transition-opacity">⛔ GOOGLE SIGN-IN FAILED</p>
   </div>
 </div>
 
@@ -790,6 +808,7 @@ function handleLogin() {
     card.style.transform = "scale(1.05)";
     screen.style.opacity = "0";
     setTimeout(() => { screen.style.display = 'none'; }, 500);
+    if (!window._dataLoaded) { window._dataLoaded = true; loadData(); }
   } else {
     errorMsg.classList.remove('opacity-0');
     input.classList.add('border-red-500', 'text-red-500');
@@ -833,7 +852,12 @@ window.onload = function() {
   // Restore last view
   const lastView = localStorage.getItem('ANJANI_LAST_VIEW');
   go(lastView && lastView !== 'cust-detail' ? lastView : 'orders');
-  loadData();
+  // loadData() is called either by onAuthStateChanged (Google sign-in)
+  // or by handleLogin() (PIN). Only call directly if already PIN-authenticated.
+  if (localStorage.getItem(SESSION_KEY) === 'true' && !window._dataLoaded) {
+    window._dataLoaded = true;
+    loadData();
+  }
   // Load chat history
   loadHistory();
   var ph = document.getElementById('sj-ph'); if(ph && !ph.value) ph.value = '91' + STAFF_NUM;
