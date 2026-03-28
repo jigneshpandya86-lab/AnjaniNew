@@ -1,9 +1,11 @@
 // firebase-api.js — Firebase bridge replacing Google Apps Script JSONP polyfill
+// Uses npm package imports (bundled by Vite) instead of CDN URLs.
 import { db } from './firebase-config.js';
 import {
   collection, addDoc, getDoc, getDocs, doc, updateDoc, deleteDoc,
-  query, where, setDoc, runTransaction, writeBatch, increment
-} from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+  query, where, setDoc, runTransaction, writeBatch, increment, onSnapshot,
+  orderBy, limit,
+} from 'firebase/firestore';
 
 const MACRO_URL = 'https://trigger.macrodroid.com/c54612db-2ff7-4ff5-ac00-e428c1011e31/anjani_sms';
 
@@ -66,6 +68,158 @@ function todayIST() {
   const d = String(ist.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
 }
+
+// ─── Simple debounce (used by real-time listener) ─────────────────────────────
+
+function debounce(fn, wait) {
+  let t;
+  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), wait); };
+}
+
+// ─── Real-time Firestore listeners ────────────────────────────────────────────
+//
+// subscribeToChanges(onUpdate) sets up onSnapshot listeners on every
+// collection. Each listener:
+//   • Automatically receives the initial data snapshot when first attached
+//   • Fires again whenever a document is added / updated / deleted
+//   • Updates window.DB in-place so the existing app code sees fresh data
+//   • Calls the debounced onUpdate callback so the UI re-renders efficiently
+//
+// Returns an unsubscribe function to clean up all listeners.
+
+let _unsubscribers = [];
+
+function subscribeToChanges(onUpdate) {
+  // Tear down any existing listeners first
+  _unsubscribers.forEach(u => u());
+  _unsubscribers = [];
+
+  if (!window.DB) window.DB = {};
+
+  // Debounce renders: batch rapid-fire updates (e.g. initial load of 7 collections)
+  // into a single render call ~200 ms after the last snapshot.
+  const debouncedRender = debounce(onUpdate, 200);
+
+  // Track how many collections have delivered their first snapshot so we can
+  // signal "initial load complete" to loadData().
+  const COLLECTIONS = ['customers', 'orders', 'payments', 'stock', 'jobs', 'leads'];
+  const loadedSet = new Set();
+  let initialLoadFired = false;
+
+  function markLoaded(name) {
+    loadedSet.add(name);
+    if (!initialLoadFired && loadedSet.size >= COLLECTIONS.length) {
+      initialLoadFired = true;
+      // Signal that all collections are ready (hides loader, saves cache)
+      onUpdate('__initial_load_complete__');
+    } else {
+      debouncedRender(name);
+    }
+  }
+
+  // ── Orders: most recent 200, ordered by date desc (pagination-ready) ────────
+  // This replaces the "load ALL orders at once" pattern with a bounded query.
+  // Increase the limit or add a "load more" button in the UI as needed.
+  _unsubscribers.push(
+    onSnapshot(
+      query(collection(db, 'orders'), orderBy('orderDate', 'desc'), limit(200)),
+      snap => {
+        window.DB.orders = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        markLoaded('orders');
+      },
+      e => console.error('[Realtime] orders error:', e)
+    )
+  );
+
+  // ── Customers: all active, bounded to 500 ───────────────────────────────────
+  _unsubscribers.push(
+    onSnapshot(
+      query(collection(db, 'customers'), limit(500)),
+      snap => {
+        window.DB.customers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        markLoaded('customers');
+      },
+      e => console.error('[Realtime] customers error:', e)
+    )
+  );
+
+  // ── Payments: most recent 300 ────────────────────────────────────────────────
+  _unsubscribers.push(
+    onSnapshot(
+      query(collection(db, 'payments'), orderBy('date', 'desc'), limit(300)),
+      snap => {
+        window.DB.payments = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        markLoaded('payments');
+      },
+      e => console.error('[Realtime] payments error:', e)
+    )
+  );
+
+  // ── Stock ────────────────────────────────────────────────────────────────────
+  _unsubscribers.push(
+    onSnapshot(
+      query(collection(db, 'stock'), orderBy('date', 'desc'), limit(300)),
+      snap => {
+        window.DB.stock = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        markLoaded('stock');
+      },
+      e => console.error('[Realtime] stock error:', e)
+    )
+  );
+
+  // ── Jobs ─────────────────────────────────────────────────────────────────────
+  _unsubscribers.push(
+    onSnapshot(
+      collection(db, 'jobs'),
+      snap => {
+        window.DB.jobs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        markLoaded('jobs');
+      },
+      e => console.error('[Realtime] jobs error:', e)
+    )
+  );
+
+  // ── Leads ────────────────────────────────────────────────────────────────────
+  _unsubscribers.push(
+    onSnapshot(
+      collection(db, 'leads'),
+      snap => {
+        window.DB.leads = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        markLoaded('leads');
+      },
+      e => console.error('[Realtime] leads error:', e)
+    )
+  );
+
+  // ── SmartMsgs (no pagination — small collection) ─────────────────────────────
+  _unsubscribers.push(
+    onSnapshot(
+      collection(db, 'smartMsgs'),
+      snap => {
+        const smartMsgs = {};
+        snap.docs.forEach(d => {
+          smartMsgs[d.id] = d.data().message !== undefined ? d.data().message : d.data();
+        });
+        window.DB.smartMsgs = smartMsgs;
+        // smartMsgs is not in COLLECTIONS, trigger render independently
+        debouncedRender('smartMsgs');
+      },
+      e => console.error('[Realtime] smartMsgs error:', e)
+    )
+  );
+
+  const unsubscribeAll = () => {
+    _unsubscribers.forEach(u => u());
+    _unsubscribers = [];
+  };
+
+  // Expose globally so non-module scripts can call it
+  window._realtimeUnsubscribe = unsubscribeAll;
+  return unsubscribeAll;
+}
+
+// Expose for use by the non-module main app script in index.html
+window.setupRealtime = subscribeToChanges;
 
 // ─── GAS Function Implementations ────────────────────────────────────────────
 
