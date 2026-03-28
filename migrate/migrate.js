@@ -230,14 +230,65 @@ async function updateOrderCounter(docs) {
   console.log(`  ↑ meta/counters.orderId set to ${maxId}`);
 }
 
+// ── Recalculate outstanding for all customers ─────────────────────────────────
+async function recalculateOutstanding() {
+  console.log('\n🔄  Recalculating outstanding balances for all customers...');
+
+  const [custSnap, ordSnap, paySnap] = await Promise.all([
+    db.collection('customers').get(),
+    db.collection('orders').get(),
+    db.collection('payments').get(),
+  ]);
+
+  // Index orders and payments by clientId
+  const ordersByClient = {};
+  ordSnap.docs.forEach(d => {
+    const o = d.data();
+    if (o.status === 'Delivered') {
+      ordersByClient[o.clientId] = (ordersByClient[o.clientId] || 0) + (Number(o.amount) || 0);
+    }
+  });
+
+  const payByClient = {};
+  paySnap.docs.forEach(d => {
+    const p = d.data();
+    payByClient[p.clientId] = (payByClient[p.clientId] || 0) + (Number(p.amount) || 0);
+  });
+
+  let batch = db.batch();
+  let count = 0, total = 0;
+
+  for (const cust of custSnap.docs) {
+    const cid = cust.id;
+    const outstanding = (ordersByClient[cid] || 0) - (payByClient[cid] || 0);
+    batch.update(cust.ref, { outstanding });
+    count++; total++;
+
+    if (count === 499) {
+      await batch.commit();
+      batch = db.batch();
+      count = 0;
+    }
+  }
+  if (count > 0) await batch.commit();
+
+  console.log(`✅  Updated outstanding for ${total} customers.\n`);
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 async function main() {
   const [,, collectionName, csvFile] = process.argv;
 
+  // Special command: recalculate outstanding balances
+  if (collectionName === 'recalculate') {
+    await recalculateOutstanding();
+    process.exit(0);
+  }
+
   const validCollections = Object.keys(COLUMN_MAP);
   if (!validCollections.includes(collectionName)) {
     console.error(`\n❌  Unknown collection: ${collectionName}`);
-    console.error(`   Valid options: ${validCollections.join(', ')}\n`);
+    console.error(`   Valid options: ${validCollections.join(', ')}, recalculate\n`);
     process.exit(1);
   }
 
