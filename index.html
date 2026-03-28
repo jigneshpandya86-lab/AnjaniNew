@@ -17,8 +17,12 @@
   <link rel="preconnect" href="https://cdn.tailwindcss.com">
   <link rel="preconnect" href="https://cdnjs.cloudflare.com">
 
+  <!-- NOTE: Tailwind CDN generates CSS dynamically and cannot be SRI-hashed.
+       For production, replace with a Tailwind CLI build to enable CSP/SRI. -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/feather-icons/4.29.0/feather.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/feather-icons/4.29.0/feather.min.js"
+          integrity="sha384-RyE9TSx1shZZA6GS7TToIk1J7zY1mU8evbLDXYgOz4zgduwPFEtnHd1bswt8PG/u"
+          crossorigin="anonymous"></script>
 
   <style>
     /* ── ANJANI WATER · CALM WATER THEME ── */
