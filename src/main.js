@@ -1,13 +1,14 @@
 /**
- * src/main.js — Vite entry point
+ * src/main.js — Vite entry point (local dev only)
  *
- * Import order matters:
- *  1. style.css   — Tailwind CSS (built by Vite, replaces CDN script)
- *  2. errors.js   — Sentry must be ready before any other code can throw
- *  3. cache.js    — IndexedDB (Dexie) must be ready before window.onload fires
+ * This file is only used when running `npm run dev` (Vite).
+ * On GitHub Pages the modules are loaded directly via <script type="module">
+ * tags in index.html, using the import map for CDN resolution.
  *
- * Both cache.js and errors.js attach helpers to `window.*` so the non-module
- * main app script in index.html can use them without import syntax.
+ * Import order:
+ *  1. style.css  — Tailwind CSS built by Vite (replaces CDN on dev)
+ *  2. errors.js  — Sentry (must be ready before any code can throw)
+ *  3. cache.js   — Dexie IndexedDB (must be ready before window.onload)
  */
 
 import './style.css';
