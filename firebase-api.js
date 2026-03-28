@@ -62,7 +62,12 @@ const GAS = {
       customers: custSnap.docs.map(d => ({ id: d.id, ...d.data() })),
       orders:    ordSnap.docs.map(d => ({ id: d.id, ...d.data() })),
       payments:  paySnap.docs.map(d => ({ id: d.id, ...d.data() })),
-      stock:     stockSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+      stock:     stockSnap.docs.map(d => {
+        const s = d.data();
+        // Normalize old docs that saved 'qty' instead of 'produced'
+        if (s.produced === undefined && s.qty !== undefined) s.produced = Number(s.qty);
+        return { id: d.id, ...s };
+      }),
       jobs:      jobSnap.docs.map(d => ({ id: d.id, ...d.data() })),
       smartMsgs
     });
@@ -70,22 +75,22 @@ const GAS = {
 
   async getLeadsData() {
     const snap = await getDocs(collection(db, 'leads'));
-    return JSON.stringify({ leads: snap.docs.map(d => ({ id: d.id, ...d.data() })) });
+    return JSON.stringify(snap.docs.map(d => ({ id: d.id, ...d.data() })));
   },
 
   async getStockData() {
     const snap = await getDocs(collection(db, 'stock'));
-    return JSON.stringify({ stock: snap.docs.map(d => ({ id: d.id, ...d.data() })) });
+    return JSON.stringify(snap.docs.map(d => ({ id: d.id, ...d.data() })));
   },
 
   async getPaymentsData() {
     const snap = await getDocs(collection(db, 'payments'));
-    return JSON.stringify({ payments: snap.docs.map(d => ({ id: d.id, ...d.data() })) });
+    return JSON.stringify(snap.docs.map(d => ({ id: d.id, ...d.data() })));
   },
 
   async getJobsData() {
     const snap = await getDocs(collection(db, 'jobs'));
-    return JSON.stringify({ jobs: snap.docs.map(d => ({ id: d.id, ...d.data() })) });
+    return JSON.stringify(snap.docs.map(d => ({ id: d.id, ...d.data() })));
   },
 
   async saveOrder(data) {
@@ -135,10 +140,11 @@ const GAS = {
 
   async saveCustomer(data) {
     const d = typeof data === 'string' ? JSON.parse(data) : data;
+    const isEdit = !!d.isEdit;
+    delete d.isEdit;
     const cid = String(d.id || d.mobile || Date.now());
     d.id = cid;
-    if (d.isEdit) {
-      delete d.isEdit;
+    if (isEdit) {
       await updateDoc(doc(db, 'customers', cid), d);
     } else {
       d.outstanding = d.outstanding !== undefined ? d.outstanding : 0;
@@ -162,9 +168,14 @@ const GAS = {
 
   async saveProduction(data) {
     const d = typeof data === 'string' ? JSON.parse(data) : data;
-    d.date = d.date || todayIST();
-    d.delivered = d.delivered !== undefined ? d.delivered : 0;
-    await addDoc(collection(db, 'stock'), d);
+    // Frontend sends { qty, sku } — map to { produced, sku }
+    const produced = Number(d.qty || d.produced) || 0;
+    await addDoc(collection(db, 'stock'), {
+      date:     d.date || todayIST(),
+      produced: produced,
+      delivered: 0,
+      sku:      d.sku || '200ml'
+    });
     return JSON.stringify({ success: true });
   },
 
@@ -298,23 +309,46 @@ const GAS = {
   async getDashboardMetrics() {
     const DB = window.DB || {};
     const customers = DB.customers || [];
-    const orders = DB.orders || [];
-    const stock = DB.stock || [];
+    const orders    = DB.orders    || [];
+    const payments  = DB.payments  || [];
+    const stock     = DB.stock     || [];
+
     const todayStr = todayIST();
+    const now = new Date();
+    const weekAgo  = new Date(now); weekAgo.setDate(weekAgo.getDate() - 7);
+    const monthAgo = new Date(now); monthAgo.setDate(monthAgo.getDate() - 30);
+    const weekStr  = weekAgo.toISOString().split('T')[0];
+    const monthStr = monthAgo.toISOString().split('T')[0];
 
+    function periodMetrics(fromStr) {
+      const ords = orders.filter(o => o.status === 'Delivered' && (o.deliveryDate || '') >= fromStr);
+      const pays = payments.filter(p => (p.date || '') >= fromStr);
+      const stk  = stock.filter(s => (s.date || '') >= fromStr);
+      return {
+        orders: ords.length,
+        box:    ords.reduce((s, o) => s + (Number(o.boxes) || 0), 0),
+        prod:   stk.reduce((s, r)  => s + (Number(r.produced) || 0), 0),
+        rev:    ords.reduce((s, o) => s + (Number(o.amount) || 0), 0),
+        col:    pays.reduce((s, p) => s + (Number(p.amount) || 0), 0)
+      };
+    }
+
+    const netStock = stock.reduce((s, r) => s + (Number(r.produced) || 0) - (Number(r.delivered) || 0), 0);
     const totalOutstanding = customers.reduce((s, c) => s + (Number(c.outstanding) || 0), 0);
-    const todayOrders = orders.filter(o => o.deliveryDate === todayStr);
-    const todayStock = stock.filter(s => s.date === todayStr);
-    const totalProduced = todayStock.reduce((s, r) => s + (Number(r.produced) || 0), 0);
-    const totalDelivered = todayStock.reduce((s, r) => s + (Number(r.delivered) || 0), 0);
+    const pendingOrders = orders.filter(o => o.status === 'Pending' || o.status === 'Processing').length;
 
-    return JSON.stringify({
-      totalOutstanding,
-      todayOrderCount: todayOrders.length,
-      todayProduced: totalProduced,
-      todayDelivered: totalDelivered,
-      activeCustomers: customers.filter(c => c.active).length
-    });
+    const result = {
+      TODAY: periodMetrics(todayStr),
+      WEEK:  periodMetrics(weekStr),
+      MONTH: periodMetrics(monthStr),
+      STATUS: {
+        pending:     pendingOrders,
+        outstanding: totalOutstanding,
+        stock:       netStock
+      }
+    };
+    console.log('[Dashboard] metrics:', JSON.stringify(result));
+    return JSON.stringify(result);
   },
 
   async getSmsCandidates() {

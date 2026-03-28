@@ -1,5 +1,5 @@
 // Service Worker — AnjaniApp PWA
-const CACHE = 'anjani-v1';
+const CACHE = 'anjani-v3';
 const SHELL = [
   '/',
   '/index.html',
