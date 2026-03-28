@@ -104,6 +104,15 @@ const GAS = {
     d.status = d.status || 'Pending';
     d.orderDate = d.orderDate || todayIST();
     await setDoc(doc(db, 'orders', String(orderId)), d);
+    // Auto-create delivery task
+    const taskId = String(Date.now());
+    await setDoc(doc(db, 'jobs', taskId), {
+      id:      taskId,
+      task:    `Deliver to ${d.customer} — ${d.boxes} x ${d.sku || '200ml'} on ${d.deliveryDate || d.orderDate}`,
+      orderId: String(orderId),
+      status:  'Pending',
+      date:    d.deliveryDate || todayIST()
+    });
     return JSON.stringify({ success: true, orderId });
   },
 
@@ -190,6 +199,12 @@ const GAS = {
     d.createdDate = d.createdDate || todayIST();
     d.status = d.status || 'New';
     await setDoc(doc(db, 'leads', mobile), d, { merge: true });
+    // Auto-save to Android phone contacts as "Facebook Lead"
+    if (typeof window !== 'undefined' && window.Capacitor?.Plugins?.ContactsPlugin) {
+      try {
+        await window.Capacitor.Plugins.ContactsPlugin.save({ name: 'Facebook Lead', phone: mobile });
+      } catch(e) { console.warn('[Contacts] Save failed:', e.message); }
+    }
     return JSON.stringify({ success: true, id: mobile });
   },
 

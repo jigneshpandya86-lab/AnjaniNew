@@ -920,10 +920,20 @@ function loadData() {
           localStorage.removeItem('anjani_db_cache');
         }
  
+        // Auto-sync pending leads to Android phone contacts
+        if (window.Capacitor?.Plugins?.ContactsPlugin) {
+          (DB.leads || []).filter(l => l.needsContactSync).forEach(l => {
+            window.Capacitor.Plugins.ContactsPlugin.save({ name: 'Facebook Lead', phone: String(l.mobile) })
+              .then(() => google.script.run.saveLeadNote(l.id, l.notes || ''))
+              .catch(() => {});
+            l.needsContactSync = false;
+          });
+        }
+
         // Update connection status
         const connText = document.getElementById('conn-text');
         if (connText) connText.innerText = 'Synced ' + new Date().toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'});
- 
+
       }).getLeadsData();
  
       render();
@@ -3390,6 +3400,9 @@ function placeOrder(e) {
       document.getElementById('ord-date').value = new Date().toISOString().split('T')[0];
       btn.disabled = false;
       btn.innerText = "CONFIRM ORDER";
+      // Auto-SMS full order details to delivery staff
+      const smsMsg = `New Order!\nCustomer: ${data.customer}\nAddr: ${data.address}\nBoxes: ${data.boxes} x ${data.sku || '200ml'}\nDate: ${data.deliveryDate} ${data.time || ''}\nAmt: Rs.${data.amount}`;
+      google.script.run.sendBackgroundSms(STAFF_NUM, smsMsg);
     })
     .withFailureHandler((err) => {
       btn.disabled = false;

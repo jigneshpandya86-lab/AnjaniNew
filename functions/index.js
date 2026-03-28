@@ -61,6 +61,50 @@ exports.gmailConnectStatus = functions.https.onRequest(async (req, res) => {
   }
 });
 
+// ─── Firestore trigger: New order → email staff ──────────────────────────────
+exports.onNewOrder = functions.firestore
+  .document('orders/{orderId}')
+  .onCreate(async (snap) => {
+    const order = snap.data();
+    try {
+      const tokenSnap = await db.doc('_config/gmail_token').get();
+      if (!tokenSnap.exists || !tokenSnap.data().refresh_token) {
+        console.log('[onNewOrder] Gmail not connected — skipping email.');
+        return;
+      }
+      const oauth2 = getOAuth2Client();
+      oauth2.setCredentials({ refresh_token: tokenSnap.data().refresh_token });
+      const gmail = google.gmail({ version: 'v1', auth: oauth2 });
+
+      const body = [
+        `New Order Received!`,
+        ``,
+        `Customer : ${order.customer || '-'}`,
+        `Mobile   : ${order.mobile || '-'}`,
+        `Address  : ${order.address || '-'}`,
+        `Boxes    : ${order.boxes} x ${order.sku || '200ml'}`,
+        `Delivery : ${order.deliveryDate || '-'} ${order.time || ''}`,
+        `Amount   : Rs.${order.amount || 0}`,
+        `Staff    : ${order.staff || '-'}`,
+        `Order ID : ${order.id}`,
+      ].join('\n');
+
+      const mime = [
+        `To: nileshvaniya@gmail.com`,
+        `Subject: New Order - ${order.customer} (${order.deliveryDate || order.orderDate})`,
+        `Content-Type: text/plain; charset=utf-8`,
+        ``,
+        body
+      ].join('\r\n');
+
+      const encoded = Buffer.from(mime).toString('base64url');
+      await gmail.users.messages.send({ userId: 'me', requestBody: { raw: encoded } });
+      console.log(`[onNewOrder] Email sent for order ${order.id}`);
+    } catch (e) {
+      console.error('[onNewOrder] Email failed:', e.message);
+    }
+  });
+
 // ─── Scheduled: Every 60 minutes, 8 AM–9 PM IST — fetch & process IndiaMART emails ──
 exports.processIndiaMartEmails = functions.pubsub
   .schedule('every 60 minutes')
@@ -109,7 +153,7 @@ exports.processIndiaMartEmails = functions.pubsub
 
         const lead = parseIndiaMartEmail(plainBody, htmlBody, subject, sessionNumbers);
         if (lead) {
-          await db.collection('leads').doc(lead.mobile).set(lead, { merge: true });
+          await db.collection('leads').doc(lead.mobile).set({ ...lead, needsContactSync: true }, { merge: true });
           await gmail.users.messages.modify({
             userId: 'me',
             id,
