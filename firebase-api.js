@@ -1,9 +1,12 @@
 // firebase-api.js — Firebase bridge replacing Google Apps Script JSONP polyfill
-import { db } from './firebase-config.js';
+import { db, auth } from './firebase-config.js';
 import {
   collection, addDoc, getDoc, getDocs, doc, updateDoc, deleteDoc,
   query, where, setDoc, runTransaction, writeBatch
 } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+import {
+  GoogleAuthProvider, signInWithPopup, onAuthStateChanged, browserLocalPersistence, setPersistence
+} from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
 
 const MACRO_URL = 'https://trigger.macrodroid.com/c54612db-2ff7-4ff5-ac00-e428c1011e31/anjani_sms';
 
@@ -412,5 +415,45 @@ window.google = {
     })
   }
 };
+
+// ─── Google Sign-In ──────────────────────────────────────────────────────────
+// SETUP REQUIRED (one-time, in Firebase Console):
+//   1. Authentication → Sign-in methods → Enable "Google"
+//   2. Authentication → Settings → Authorized domains → Add "jigneshpandya86-lab.github.io"
+
+function hideLoginScreen() {
+  const screen = document.getElementById('login-screen');
+  if (!screen || screen.style.display === 'none') return;
+  screen.style.transition = 'opacity 0.4s';
+  screen.style.opacity = '0';
+  setTimeout(() => { screen.style.display = 'none'; }, 420);
+}
+
+window.signInWithGoogle = async function() {
+  const btn = document.getElementById('btn-google-signin');
+  const errEl = document.getElementById('google-signin-error');
+  if (btn) { btn.disabled = true; btn.innerHTML = '⟳ Signing in...'; }
+  if (errEl) errEl.classList.add('hidden');
+  try {
+    await setPersistence(auth, browserLocalPersistence);
+    const provider = new GoogleAuthProvider();
+    await signInWithPopup(auth, provider);
+    // onAuthStateChanged fires next and hides the screen
+  } catch (e) {
+    console.error('[Auth] Google sign-in failed:', e);
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M16.51 8H8.98v3h4.3c-.18 1-.74 1.48-1.6 2.04v2.01h2.6a7.8 7.8 0 0 0 2.38-5.88c0-.57-.05-.66-.15-1.18z"/><path fill="#34A853" d="M8.98 17c2.16 0 3.97-.72 5.3-1.94l-2.6-2a4.8 4.8 0 0 1-7.18-2.54H1.83v2.07A8 8 0 0 0 8.98 17z"/><path fill="#FBBC05" d="M4.5 10.52a4.8 4.8 0 0 1 0-3.04V5.41H1.83a8 8 0 0 0 0 7.18l2.67-2.07z"/><path fill="#EA4335" d="M8.98 4.18c1.17 0 2.23.4 3.06 1.2l2.3-2.3A8 8 0 0 0 1.83 5.4L4.5 7.49a4.77 4.77 0 0 1 4.48-3.3z"/></svg> Sign in with Google';
+    }
+    if (errEl) { errEl.textContent = 'Sign-in failed. Try again.'; errEl.classList.remove('hidden'); }
+  }
+};
+
+// Auto-hide login screen if already authenticated (Google) or PIN session active
+onAuthStateChanged(auth, (user) => {
+  if (user || localStorage.getItem('anjani_app_access') === 'true') {
+    hideLoginScreen();
+  }
+});
 
 console.log('[AnjaniApp] Firebase API bridge loaded ✅');
