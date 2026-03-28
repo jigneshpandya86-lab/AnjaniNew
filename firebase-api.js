@@ -327,9 +327,9 @@ const GAS = {
   async sendBackgroundSms(phone, message) {
     try {
       const url = `${MACRO_URL}?phone=${encodeURIComponent(phone)}&msg=${encodeURIComponent(message)}`;
-      fetch(url, { mode: 'no-cors' });
+      fetch(url, { mode: 'no-cors' }).catch(e => console.error('[SMS] fetch failed:', e.message));
     } catch (e) {
-      // no-cors fetch may throw in some environments — ignore
+      console.error('[SMS] sendBackgroundSms error:', e.message);
     }
     return JSON.stringify({ success: true });
   },
