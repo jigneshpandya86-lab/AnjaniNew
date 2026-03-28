@@ -14,12 +14,11 @@
   <link rel="manifest" href="/manifest.json">
 
   <!-- Preconnect for performance -->
-  <link rel="preconnect" href="https://cdn.tailwindcss.com">
   <link rel="preconnect" href="https://cdnjs.cloudflare.com">
 
-  <!-- NOTE: Tailwind CDN generates CSS dynamically and cannot be SRI-hashed.
-       For production, replace with a Tailwind CLI build to enable CSP/SRI. -->
-  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Tailwind CSS — built by Vite + Tailwind CLI (replaces CDN script).
+       Run `npm run dev` for development or `npm run build` for production. -->
+  <script type="module" src="/src/main.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/feather-icons/4.29.0/feather.min.js"
           integrity="sha384-RyE9TSx1shZZA6GS7TToIk1J7zY1mU8evbLDXYgOz4zgduwPFEtnHd1bswt8PG/u"
           crossorigin="anonymous"></script>
@@ -820,109 +819,107 @@ window.onload = function() {
   var ph = document.getElementById('sj-ph'); if(ph && !ph.value) ph.value = '91' + STAFF_NUM;
 };
 
-function loadData() {
+async function loadData() {
   const log = document.getElementById('debug-log');
-  const CACHE_KEY = 'anjani_db_cache';
-  const CACHE_TIME_KEY = 'anjani_db_cache_time';
- 
-  // ── Step 1: Load from cache INSTANTLY if available ──────
-  const cached = localStorage.getItem(CACHE_KEY);
+  const CACHE_KEY = 'anjani_db_v2'; // v2 = IndexedDB schema (Dexie)
+
+  // Ensure window.DB is the canonical global reference used by firebase-api.js
+  window.DB = DB;
+
+  // ── Step 1: Load from IndexedDB cache INSTANTLY if available ────────────────
+  // AnjaniCache is set up by src/cache.js (Dexie). It runs as a module before
+  // window.onload, so it's always available here.
+  const cached = window.AnjaniCache ? await window.AnjaniCache.get(CACHE_KEY) : null;
   if (cached) {
-    try {
-      const parsed = JSON.parse(cached);
-      DB.customers = parsed.customers || [];
-      DB.orders    = parsed.orders    || [];
-      DB.payments  = parsed.payments  || [];
-      DB.stock     = parsed.stock     || [];
-      DB.jobs      = parsed.jobs      || [];
-      DB.smartMsgs = parsed.smartMsgs || {};
-      DB.leads     = parsed.leads     || [];
-      render();
-      renderLeads();
-      document.getElementById('loader').classList.add('hidden');
-      // Show "last synced" time in connection indicator
-      const cacheTime = localStorage.getItem(CACHE_TIME_KEY);
-      if (cacheTime) {
-        const mins = Math.round((Date.now() - Number(cacheTime)) / 60000);
-        const connText = document.getElementById('conn-text');
-        if (connText && !navigator.onLine) {
-          connText.innerText = 'Offline — data from ' + (mins < 2 ? 'just now' : mins + 'm ago');
-        }
+    DB.customers = cached.customers || [];
+    DB.orders    = cached.orders    || [];
+    DB.payments  = cached.payments  || [];
+    DB.stock     = cached.stock     || [];
+    DB.jobs      = cached.jobs      || [];
+    DB.smartMsgs = cached.smartMsgs || {};
+    DB.leads     = cached.leads     || [];
+    render();
+    renderLeads();
+    document.getElementById('loader').classList.add('hidden');
+
+    // Show "last synced" time from IndexedDB timestamp
+    const cacheTs = window.AnjaniCache ? await window.AnjaniCache.getTimestamp(CACHE_KEY) : null;
+    if (cacheTs) {
+      const mins = Math.round((Date.now() - cacheTs) / 60000);
+      const connText = document.getElementById('conn-text');
+      if (connText && !navigator.onLine) {
+        connText.innerText = 'Offline — data from ' + (mins < 2 ? 'just now' : mins + 'm ago');
       }
-    } catch(e) {
-      console.log('[Cache] Parse error:', e);
     }
   }
- 
-  // ── Step 2: If offline, stop here — cache is enough ─────
+
+  // ── Step 2: If offline, stop here — IndexedDB cache is enough ───────────────
   if (!navigator.onLine) {
     if (!cached) {
-      // First ever load with no cache and no internet
-      if (log) { log.innerText = "No internet & no cached data. Please connect once to load data."; log.classList.remove('hidden'); }
+      if (log) { log.innerText = 'No internet & no cached data. Please connect once to load data.'; log.classList.remove('hidden'); }
     }
     return;
   }
- 
-  // ── Step 3: Online — fetch fresh data from GAS ──────────
-  google.script.run.withSuccessHandler(function(res) {
-    try {
-      const parsed = JSON.parse(res);
-      if (parsed.error) throw new Error(parsed.error);
- 
-      DB.customers = parsed.customers || [];
-      DB.orders    = parsed.orders    || [];
-      DB.payments  = parsed.payments  || [];
-      DB.stock     = parsed.stock     || [];
-      DB.jobs      = parsed.jobs      || [];
-      DB.smartMsgs = parsed.smartMsgs || {};
- 
-      // Fetch leads then save everything to cache
-      google.script.run.withSuccessHandler(function(l) {
-        DB.leads = JSON.parse(l);
-        renderLeads();
- 
-        // ── Save full DB snapshot to localStorage ──────
-        const snapshot = {
+
+  // ── Step 3: Online — set up real-time Firestore listeners ───────────────────
+  // subscribeToChanges() (defined in firebase-api.js) replaces the one-time
+  // getInitialData() fetch. Each collection gets an onSnapshot listener that:
+  //   • Fires immediately with current data (replaces the initial fetch)
+  //   • Fires again on every change (adds real-time updates)
+  //   • Is bounded by limits (200 orders, 500 customers, etc.) to control costs
+  if (typeof window.setupRealtime === 'function') {
+    window.setupRealtime(async function(eventName) {
+      // '__initial_load_complete__' fires once all 6 collections have their
+      // first snapshot. Hide loader and save to IndexedDB cache.
+      if (eventName === '__initial_load_complete__') {
+        document.getElementById('loader').classList.add('hidden');
+        const connText = document.getElementById('conn-text');
+        if (connText) connText.innerText = 'Live — ' + new Date().toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'});
+      }
+
+      // Re-render the currently visible view
+      render();
+      renderLeads();
+
+      // Persist snapshot to IndexedDB for offline use
+      if (window.AnjaniCache) {
+        await window.AnjaniCache.set(CACHE_KEY, {
           customers: DB.customers,
           orders:    DB.orders,
           payments:  DB.payments,
           stock:     DB.stock,
           jobs:      DB.jobs,
           smartMsgs: DB.smartMsgs,
-          leads:     DB.leads
-        };
-        try {
-          localStorage.setItem('anjani_db_cache', JSON.stringify(snapshot));
-          localStorage.setItem('anjani_db_cache_time', String(Date.now()));
-          console.log('[Cache] DB snapshot saved at', new Date().toLocaleTimeString());
-        } catch(e) {
-          console.log('[Cache] Storage full, clearing old data');
-          localStorage.removeItem('anjani_db_cache');
-        }
- 
-        // Update connection status
-        const connText = document.getElementById('conn-text');
-        if (connText) connText.innerText = 'Synced ' + new Date().toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'});
- 
-      }).getLeadsData();
- 
-      render();
-      document.getElementById('loader').classList.add('hidden');
- 
-    } catch(e) {
-      if (log) { log.innerText = "DATA: " + e.message; log.classList.remove('hidden'); }
-    }
-  }).withFailureHandler(function(e) {
-    // GAS failed — but cache already loaded above so app still works
-    console.log('[GAS] Load failed:', e.message);
-    const connText = document.getElementById('conn-text');
-    if (connText) connText.innerText = 'Sync failed — using cached data';
-    // Hide loader if we have cached data
-    if (cached) document.getElementById('loader').classList.add('hidden');
-    else {
-      if (log) { log.innerText = "CONN: " + e.message; log.classList.remove('hidden'); }
-    }
-  }).getInitialData();
+          leads:     DB.leads,
+        });
+      }
+    });
+  } else {
+    // Fallback: setupRealtime not available (e.g., firebase-api.js failed to load)
+    // Fall back to the legacy one-time fetch approach.
+    google.script.run.withSuccessHandler(function(res) {
+      try {
+        const parsed = JSON.parse(res);
+        if (parsed.error) throw new Error(parsed.error);
+        DB.customers = parsed.customers || [];
+        DB.orders    = parsed.orders    || [];
+        DB.payments  = parsed.payments  || [];
+        DB.stock     = parsed.stock     || [];
+        DB.jobs      = parsed.jobs      || [];
+        DB.smartMsgs = parsed.smartMsgs || {};
+        render();
+        document.getElementById('loader').classList.add('hidden');
+      } catch(e) {
+        if (log) { log.innerText = 'DATA: ' + e.message; log.classList.remove('hidden'); }
+      }
+    }).withFailureHandler(function(e) {
+      console.error('[GAS] Load failed:', e.message);
+      const connText = document.getElementById('conn-text');
+      if (connText) connText.innerText = 'Sync failed — using cached data';
+      if (cached) document.getElementById('loader').classList.add('hidden');
+      else if (log) { log.innerText = 'CONN: ' + e.message; log.classList.remove('hidden'); }
+    }).getInitialData();
+  }
 }
 
 // ============================================================
