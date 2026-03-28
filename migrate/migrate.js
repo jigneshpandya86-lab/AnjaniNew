@@ -43,21 +43,12 @@ const db = admin.firestore();
 // Edit these to match your actual sheet column names.
 const COLUMN_MAP = {
   customers: {
-    // Sheet column  →  Firestore field
-    'ID':           'id',
+    'ClientID':     'id',
     'Name':         'name',
     'Mobile':       'mobile',
+    'MapsLink':     'mapLink',
     'Rate':         'rate',
-    'Address':      'address',
     'Active':       'active',
-    'Outstanding':  'outstanding',
-    'Notes':        'notes',
-    // common aliases
-    'Customer Name':'name',
-    'Phone':        'mobile',
-    'Phone Number': 'mobile',
-    'Price':        'rate',
-    'Balance':      'outstanding',
   },
   orders: {
     'ID':             'id',
@@ -188,7 +179,7 @@ function applyDefaults(collection, doc) {
 
 // Decide the Firestore doc ID for each collection
 function getDocId(collection, doc, autoId) {
-  if (collection === 'customers') return String(doc.mobile || doc.id || autoId);
+  if (collection === 'customers') return String(doc.id || doc.mobile || autoId);
   if (collection === 'orders')    return String(doc.id || autoId);
   if (collection === 'leads')     return String(doc.mobile || doc.id || autoId);
   return null; // payments & stock use auto-ID
