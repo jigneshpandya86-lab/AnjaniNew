@@ -117,21 +117,21 @@ function subscribeToChanges(onUpdate) {
     }
   }
 
-  // ── Orders: most recent 200, ordered by date desc (pagination-ready) ────────
-  // This replaces the "load ALL orders at once" pattern with a bounded query.
-  // Increase the limit or add a "load more" button in the UI as needed.
+  // ── Orders ───────────────────────────────────────────────────────────────────
+  // No orderBy — avoids requiring a Firestore composite index.
+  // The app sorts client-side so server ordering is not needed.
   _unsubscribers.push(
     onSnapshot(
-      query(collection(db, 'orders'), orderBy('orderDate', 'desc'), limit(200)),
+      query(collection(db, 'orders'), limit(200)),
       snap => {
         window.DB.orders = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         markLoaded('orders');
       },
-      e => console.error('[Realtime] orders error:', e)
+      e => { console.error('[Realtime] orders error:', e); markLoaded('orders'); }
     )
   );
 
-  // ── Customers: all active, bounded to 500 ───────────────────────────────────
+  // ── Customers ────────────────────────────────────────────────────────────────
   _unsubscribers.push(
     onSnapshot(
       query(collection(db, 'customers'), limit(500)),
@@ -139,31 +139,31 @@ function subscribeToChanges(onUpdate) {
         window.DB.customers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         markLoaded('customers');
       },
-      e => console.error('[Realtime] customers error:', e)
+      e => { console.error('[Realtime] customers error:', e); markLoaded('customers'); }
     )
   );
 
-  // ── Payments: most recent 300 ────────────────────────────────────────────────
+  // ── Payments ─────────────────────────────────────────────────────────────────
   _unsubscribers.push(
     onSnapshot(
-      query(collection(db, 'payments'), orderBy('date', 'desc'), limit(300)),
+      query(collection(db, 'payments'), limit(300)),
       snap => {
         window.DB.payments = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         markLoaded('payments');
       },
-      e => console.error('[Realtime] payments error:', e)
+      e => { console.error('[Realtime] payments error:', e); markLoaded('payments'); }
     )
   );
 
   // ── Stock ────────────────────────────────────────────────────────────────────
   _unsubscribers.push(
     onSnapshot(
-      query(collection(db, 'stock'), orderBy('date', 'desc'), limit(300)),
+      query(collection(db, 'stock'), limit(300)),
       snap => {
         window.DB.stock = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         markLoaded('stock');
       },
-      e => console.error('[Realtime] stock error:', e)
+      e => { console.error('[Realtime] stock error:', e); markLoaded('stock'); }
     )
   );
 
@@ -175,7 +175,7 @@ function subscribeToChanges(onUpdate) {
         window.DB.jobs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         markLoaded('jobs');
       },
-      e => console.error('[Realtime] jobs error:', e)
+      e => { console.error('[Realtime] jobs error:', e); markLoaded('jobs'); }
     )
   );
 
@@ -187,7 +187,7 @@ function subscribeToChanges(onUpdate) {
         window.DB.leads = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         markLoaded('leads');
       },
-      e => console.error('[Realtime] leads error:', e)
+      e => { console.error('[Realtime] leads error:', e); markLoaded('leads'); }
     )
   );
 

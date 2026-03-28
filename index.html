@@ -881,6 +881,15 @@ async function loadData() {
     return;
   }
 
+  // ── Safety timeout: always hide loader after 8 s regardless of what happens ──
+  setTimeout(() => {
+    const loader = document.getElementById('loader');
+    if (loader && !loader.classList.contains('hidden')) {
+      loader.classList.add('hidden');
+      console.warn('[loadData] Loader hidden by safety timeout');
+    }
+  }, 8000);
+
   // ── Step 3: Online — set up real-time Firestore listeners ───────────────────
   // subscribeToChanges() (defined in firebase-api.js) replaces the one-time
   // getInitialData() fetch. Each collection gets an onSnapshot listener that:
