@@ -7,6 +7,26 @@ import {
 
 const MACRO_URL = 'https://trigger.macrodroid.com/c54612db-2ff7-4ff5-ac00-e428c1011e31/anjani_sms';
 
+// ─── Input Validators ─────────────────────────────────────────────────────────
+
+function validatePhone(mobile) {
+  const digits = String(mobile || '').replace(/\D/g, '');
+  if (digits.length < 10 || digits.length > 12) throw new Error('Invalid mobile number: must be 10–12 digits');
+  return digits.slice(-10); // normalise to last 10 digits
+}
+
+function validateAmount(amount) {
+  const n = parseFloat(amount);
+  if (isNaN(n) || n < 0) throw new Error('Invalid amount: must be a non-negative number');
+  return Math.round(n * 100) / 100; // round to 2 decimal places
+}
+
+function validateRequiredString(value, fieldName) {
+  const s = String(value || '').trim();
+  if (!s) throw new Error(`${fieldName} is required`);
+  return s;
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 async function getNextOrderId() {
@@ -135,6 +155,9 @@ const GAS = {
 
   async saveCustomer(data) {
     const d = typeof data === 'string' ? JSON.parse(data) : data;
+    if (d.mobile) d.mobile = validatePhone(d.mobile);
+    if (d.name) d.name = validateRequiredString(d.name, 'Customer name');
+    if (d.rate !== undefined) d.rate = validateAmount(d.rate);
     const cid = String(d.id || d.mobile || Date.now());
     d.id = cid;
     if (d.isEdit) {
@@ -150,6 +173,8 @@ const GAS = {
 
   async savePayment(data) {
     const d = typeof data === 'string' ? JSON.parse(data) : data;
+    d.amount = validateAmount(d.amount);
+    if (!d.clientId) throw new Error('clientId is required for payment');
     d.date = d.date || todayIST();
     await addDoc(collection(db, 'payments'), d);
     if (d.clientId) await updateOutstandingBalance(d.clientId);
@@ -170,7 +195,8 @@ const GAS = {
 
   async saveLead(data) {
     const d = typeof data === 'string' ? JSON.parse(data) : data;
-    const mobile = String(d.mobile || d.id || Date.now());
+    if (d.mobile) d.mobile = validatePhone(d.mobile);
+    const mobile = d.mobile || String(d.id || Date.now());
     d.id = mobile;
     d.createdDate = d.createdDate || todayIST();
     d.status = d.status || 'New';
