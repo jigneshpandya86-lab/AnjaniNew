@@ -974,10 +974,9 @@ function go(p) {
   }
   // Lazy loads
   if (p === 'leads') {
-    if (!DB.leads || DB.leads.length === 0) {
-      showSpinner("Loading Leads...");
-      google.script.run.withSuccessHandler(function(res) { DB.leads = JSON.parse(res); renderLeads(); hideSpinner(); }).getLeadsData();
-    } else { renderLeads(); }
+    // Leads are populated by the onSnapshot real-time listener in firebase-api.js.
+    // No need to show the spinner or do a separate fetch — just render what we have.
+    renderLeads();
   }
   if (p === 'stock') { renderStockPage(); }
   if (p === 'payments') { renderRecentPayments(); }
