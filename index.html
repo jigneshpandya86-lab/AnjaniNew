@@ -703,6 +703,19 @@ const APP_PIN = "9999";
 const SESSION_KEY = "anjani_app_access";
 const CHAT_KEY = 'anjani_full_chat_v1';
 
+// ============================================================
+// APP CONFIGURATION — change values here rather than hunting
+// through the code for magic numbers
+// ============================================================
+const CONFIG = {
+  SMS_INTERVAL_SECONDS: 30,      // seconds between each SMS in a batch
+  SMS_DAILY_LIMIT: 50,           // max messages per day
+  LEAD_CUTOFF_DAYS: 5,           // days before a lead is considered stale
+  LEAD_ARCHIVE_DAYS: 30,         // days before "New" leads are auto-archived
+  RECENT_ORDERS_DAYS: 7,         // days window for "recent orders" view
+  DASH_CACHE_TTL_MS: 5 * 60 * 1000, // dashboard cache TTL in milliseconds
+};
+
 // 🔴 FIX: Single DB object (was split between DB and window.DB)
 let DB = { customers: [], orders: [], stock: [], payments: [], leads: [], jobs: [], smartMsgs: {} };
 let highlightID = null;
@@ -1329,7 +1342,7 @@ function renderCustomers(s) {
   (DB.orders||[]).forEach(o => { if(o.status!=='Pending') updateDate(o.clientId, o.customer, o.deliveryDate); });
   (DB.payments||[]).forEach(p => { updateDate(p.clientId, p.customer, p.date); });
   const sortedList = (DB.customers||[]).slice().sort((a,b) => { const dA=lastActiveMap[a.id]||lastActiveMap[a.name]||'2000-01-01'; const dB=lastActiveMap[b.id]||lastActiveMap[b.name]||'2000-01-01'; return dB.localeCompare(dA); });
-  const cutoffStr = new Date(Date.now()-5*86400000).toISOString().split('T')[0];
+  const cutoffStr = new Date(Date.now()-CONFIG.LEAD_CUTOFF_DAYS*86400000).toISOString().split('T')[0];
   let foundCount = 0;
   sortedList.forEach(function(c) {
     const safeName = String(c.name||"Unknown");
@@ -1471,7 +1484,7 @@ function renderLeads() {
   const list = document.getElementById('list-leads');
   if (!list) return;
   list.innerHTML = '';
-  const sevenDaysAgo = new Date(Date.now()-7*86400000).toISOString().split('T')[0];
+  const sevenDaysAgo = new Date(Date.now()-CONFIG.RECENT_ORDERS_DAYS*86400000).toISOString().split('T')[0];
   const leads = (DB.leads||[]).filter(l => (l.lastContact||'') >= sevenDaysAgo).sort((a,b) => { const dA=a.lastContact||''; const dB=b.lastContact||''; return dB!==dA?dB.localeCompare(dA):String(b.id).localeCompare(String(a.id)); });
   const countNew = leads.filter(l => l.status==='New').length;
   const countSam = leads.filter(l => l.status==='Sam').length;
@@ -1526,7 +1539,7 @@ function runLeadAction(action, id) {
 }
 
 function runArchive() {
-  if (!confirm("Archive all 'New' leads older than 30 days?")) return;
+  if (!confirm(`Archive all 'New' leads older than ${CONFIG.LEAD_ARCHIVE_DAYS} days?`)) return;
   google.script.run.withSuccessHandler((res) => { alert("Archived "+JSON.parse(res).count+" leads."); loadData(); }).archiveOldLeads();
 }
 
@@ -2710,7 +2723,7 @@ function setDashPeriod(p) {
 // Dashboard cache — lives in memory, no backend call if fresh
 let _dashCache = null;
 let _dashCacheTime = null;
-const DASH_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const DASH_CACHE_TTL = CONFIG.DASH_CACHE_TTL_MS;
 
 function renderDashboard() {
   const now = Date.now();
@@ -2990,7 +3003,7 @@ function renderSmsCandidates() {
 
 function startSmsBatch() {
   if (!smsQueue.length) return alert("⚠️ Please Load Candidates First!");
-  if (!confirm(`⚠️ Start sending to ${smsQueue.length} customers?\n• Speed: 1 msg every 30s\n• Limit: Stops at 50`)) return;
+  if (!confirm(`⚠️ Start sending to ${smsQueue.length} customers?\n• Speed: 1 msg every ${CONFIG.SMS_INTERVAL_SECONDS}s\n• Limit: Stops at ${CONFIG.SMS_DAILY_LIMIT}`)) return;
   document.getElementById('sms-status-bar').classList.remove('hidden');
   const btn = document.getElementById('btn-sms-run');
   btn.onclick = stopSmsBatch; btn.classList.remove('bg-blue-600','hover:bg-blue-500'); btn.classList.add('bg-red-600','hover:bg-red-500','animate-pulse');
@@ -3017,18 +3030,18 @@ function resetSmsButton() {
 function processSmsQueue() {
   if (!smsBatchActive) return;
   if (smsTimerIdx >= smsQueue.length) { finishSmsBatch("✅ Queue Finished."); return; }
-  if (smsDailyCount >= 50) { finishSmsBatch("🛑 Daily Limit (50) Reached."); return; }
+  if (smsDailyCount >= CONFIG.SMS_DAILY_LIMIT) { finishSmsBatch(`🛑 Daily Limit (${CONFIG.SMS_DAILY_LIMIT}) Reached.`); return; }
   const c = smsQueue[smsTimerIdx];
   let msgType = c.type==='DUE' ? (c.age>30?'Pay_Urgent':c.age>10?'Pay_Firm':'Pay_Polite') : c.type==='WAKE' ? 'Wake_Up' : (c.stage||'Lead_Day3');
   logSms(`Sending to ${c.name}...`);
   let rawMsg = (DB.smartMsgs&&DB.smartMsgs[msgType]) ? DB.smartMsgs[msgType] : "Hello {name}, checking in from Anjani Water.";
   const finalMsg = rawMsg.replace('{name}',c.name).replace('{amount}',c.bal).replace('{days}',c.days||'');
   google.script.run.withSuccessHandler((res) => {
-    if (res==='SENT') { logSms(`✅ Sent: ${c.name}`); smsDailyCount++; setText('sms-quota', smsDailyCount+"/50"); google.script.run.logSmsSuccess(c.id, c.type); }
+    if (res==='SENT') { logSms(`✅ Sent: ${c.name}`); smsDailyCount++; setText('sms-quota', smsDailyCount+"/"+CONFIG.SMS_DAILY_LIMIT); google.script.run.logSmsSuccess(c.id, c.type); }
     else logSms(`❌ Fail: ${res}`);
   }).sendBackgroundSms(c.mobile, finalMsg);
   smsTimerIdx++;
-  if (smsTimerIdx < smsQueue.length) startSmsTimer(30);
+  if (smsTimerIdx < smsQueue.length) startSmsTimer(CONFIG.SMS_INTERVAL_SECONDS);
   else finishSmsBatch("🏁 All Done.");
 }
 
