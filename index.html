@@ -11,7 +11,7 @@
   <title>ANJANI</title>
   <meta name="application-name" content="ANJANI">
   <meta name="apple-mobile-web-app-title" content="ANJANI">
-  <link rel="manifest" href="/manifest.json">
+  <link rel="manifest" href="manifest.json">
 
   <!-- Preconnect for performance -->
   <link rel="preconnect" href="https://cdnjs.cloudflare.com">
@@ -35,9 +35,10 @@
        Run `npm run dev` for the Vite dev server (faster, no CDN). -->
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- App modules (Dexie cache + Sentry errors) — loaded after import map -->
-  <script type="module" src="/src/errors.js"></script>
-  <script type="module" src="/src/cache.js"></script>
+  <!-- App modules (Dexie cache + Sentry errors) — loaded after import map.
+       Use relative paths so they resolve correctly on GitHub Pages subdirectory. -->
+  <script type="module" src="src/errors.js"></script>
+  <script type="module" src="src/cache.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/feather-icons/4.29.0/feather.min.js"
           integrity="sha384-RyE9TSx1shZZA6GS7TToIk1J7zY1mU8evbLDXYgOz4zgduwPFEtnHd1bswt8PG/u"
           crossorigin="anonymous"></script>
