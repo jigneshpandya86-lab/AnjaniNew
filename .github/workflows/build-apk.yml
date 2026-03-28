@@ -2,66 +2,43 @@ name: Build Android APK
 
 on:
   push:
-    branches: [main]
-  workflow_dispatch:
+    branches: [main, master, claude/add-indiamart-email-processor-bnlQ8]
+  workflow_dispatch:   # also allows manual trigger from GitHub UI
 
 jobs:
-  build-apk:
+  build:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
-      - name: Install Capacitor
-        run: npm install
-
-      - name: Copy web assets to www/
-        run: |
-          mkdir -p www
-          cp index.html firebase-api.js firebase-config.js manifest.json sw.js www/
-
-      - name: Setup Java 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
+          java-version: '21'
           distribution: 'temurin'
-          java-version: '17'
 
-      - name: Add Android platform
-        run: npx cap add android
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
 
-      - name: Sync Capacitor
-        run: npx cap sync android
+      - name: Install Android platform & build tools
+        run: sdkmanager "platforms;android-34" "build-tools;34.0.0"
 
-      - name: Patch AndroidManifest — add permissions
-        run: python3 patch-manifest.py
-
-      - name: Cache Gradle
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('android/**/*.gradle*') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
-
-      - name: Make gradlew executable
-        run: chmod +x android/gradlew
+      - name: Run Android setup script
+        run: bash setup-android.sh
 
       - name: Build debug APK
-        run: |
-          cd android
-          ./gradlew assembleDebug --no-daemon
+        run: cd android && ./gradlew assembleDebug --no-daemon
 
-      - name: Upload APK
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: anjani-water-v${{ github.run_number }}
+          name: anjani-water-debug
           path: android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
