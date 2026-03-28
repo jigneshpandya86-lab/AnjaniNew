@@ -15,10 +15,29 @@
 
   <!-- Preconnect for performance -->
   <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+  <link rel="preconnect" href="https://esm.sh">
 
-  <!-- Tailwind CSS — built by Vite + Tailwind CLI (replaces CDN script).
-       Run `npm run dev` for development or `npm run build` for production. -->
-  <script type="module" src="/src/main.js"></script>
+  <!-- Import map: resolves bare npm specifiers (firebase/app, dexie, etc.)
+       to CDN URLs so the app works on GitHub Pages without a build step.
+       Vite ignores this map and uses node_modules when running locally. -->
+  <script type="importmap">
+  {
+    "imports": {
+      "firebase/app":       "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js",
+      "firebase/firestore": "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js",
+      "dexie":              "https://esm.sh/dexie@4",
+      "@sentry/browser":    "https://esm.sh/@sentry/browser@8"
+    }
+  }
+  </script>
+
+  <!-- Tailwind CSS — CDN for GitHub Pages; replaced by Vite build locally.
+       Run `npm run dev` for the Vite dev server (faster, no CDN). -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- App modules (Dexie cache + Sentry errors) — loaded after import map -->
+  <script type="module" src="/src/errors.js"></script>
+  <script type="module" src="/src/cache.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/feather-icons/4.29.0/feather.min.js"
           integrity="sha384-RyE9TSx1shZZA6GS7TToIk1J7zY1mU8evbLDXYgOz4zgduwPFEtnHd1bswt8PG/u"
           crossorigin="anonymous"></script>
