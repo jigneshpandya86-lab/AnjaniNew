@@ -1,0 +1,11 @@
+{
+  "appId": "com.anjani.water",
+  "appName": "ANJANI WATER",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": true
+  }
+}
