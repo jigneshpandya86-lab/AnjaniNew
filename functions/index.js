@@ -40,7 +40,7 @@ exports.gmailAuthCallback = functions.https.onRequest(async (req, res) => {
     res.send(`
       <html><body style="font-family:sans-serif;text-align:center;padding:40px">
         <h2 style="color:#16a34a">✓ Gmail Connected!</h2>
-        <p>IndiaMART emails will now be auto-fetched every 15 minutes.</p>
+        <p>IndiaMART emails will now be auto-fetched every hour (8 AM – 9 PM IST).</p>
         <p>You can close this tab.</p>
       </body></html>
     `);
@@ -61,11 +61,18 @@ exports.gmailConnectStatus = functions.https.onRequest(async (req, res) => {
   }
 });
 
-// ─── Scheduled: Every 15 minutes — fetch & process IndiaMART emails ──────────
+// ─── Scheduled: Every 60 minutes, 8 AM–9 PM IST — fetch & process IndiaMART emails ──
 exports.processIndiaMartEmails = functions.pubsub
-  .schedule('every 15 minutes')
+  .schedule('every 60 minutes')
   .timeZone('Asia/Kolkata')
   .onRun(async () => {
+    // Skip runs outside 8:00 AM – 9:00 PM IST
+    const istHour = Number(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata', hour: 'numeric', hour12: false }));
+    if (istHour < 8 || istHour >= 21) {
+      console.log(`[IndiaMART] Outside active hours (IST ${istHour}:xx) — skipping.`);
+      return;
+    }
+
     // Load stored refresh token
     const snap = await db.doc('_config/gmail_token').get();
     if (!snap.exists || !snap.data().refresh_token) {
