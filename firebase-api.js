@@ -592,7 +592,8 @@ function buildHandler(okFn, errFn) {
   });
 }
 
-window.google = {
+// Merge into window.google so that the GIS library's google.accounts is preserved
+window.google = Object.assign(window.google || {}, {
   script: {
     run: new Proxy({}, {
       get(_, prop) {
