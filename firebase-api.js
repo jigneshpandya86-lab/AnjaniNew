@@ -363,13 +363,22 @@ const GAS = {
   },
 
   async sendBackgroundSms(phone, message) {
+    // On Android APK: send directly via native SmsPlugin (silent, no app opens)
+    // On web/browser: use MacroDroid webhook
+    if (isAndroidWebView) {
+      try {
+        await window.Capacitor.Plugins.SmsPlugin.send({ phone, message });
+        return JSON.stringify('SENT');
+      } catch (e) {
+        console.warn('[SMS] Native failed, falling back to MacroDroid:', e);
+      }
+    }
+    // MacroDroid webhook (web browser OR native fallback)
     try {
       const url = `${MACRO_URL}?phone=${encodeURIComponent(phone)}&msg=${encodeURIComponent(message)}`;
       fetch(url, { mode: 'no-cors' });
-    } catch (e) {
-      // no-cors fetch may throw in some environments — ignore
-    }
-    return JSON.stringify({ success: true });
+    } catch (e) { /* ignore no-cors */ }
+    return JSON.stringify('SENT');
   },
 
   async logSmsSuccess(id, type) {
@@ -434,6 +443,28 @@ function hideLoginScreen() {
 
 // Detect Android WebView (Capacitor) vs normal browser
 const isAndroidWebView = /wv/.test(navigator.userAgent) || (typeof window.Capacitor !== 'undefined');
+
+// ─── Intercept sms: links on Android — send natively instead of opening SMS app ─
+if (isAndroidWebView) {
+  document.addEventListener('click', async (e) => {
+    const a = e.target.closest('a[href^="sms:"]');
+    if (!a) return;
+    e.preventDefault();
+    const href = a.getAttribute('href'); // e.g. "sms:7990943652?body=Hello"
+    const [rawPhone, rawParams] = href.replace('sms:', '').split('?');
+    const phone   = rawPhone.replace(/\D/g, '');
+    const message = new URLSearchParams(rawParams || '').get('body') || '';
+    if (!phone || !message) return;
+    try {
+      await window.Capacitor.Plugins.SmsPlugin.send({ phone, message });
+      console.log('[SMS] Native sent to', phone);
+    } catch (err) {
+      console.error('[SMS] Native failed:', err);
+      // Fallback: open default SMS app
+      window.open(href, '_blank');
+    }
+  }, true);
+}
 
 const GOOGLE_BTN_HTML = '<svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M16.51 8H8.98v3h4.3c-.18 1-.74 1.48-1.6 2.04v2.01h2.6a7.8 7.8 0 0 0 2.38-5.88c0-.57-.05-.66-.15-1.18z"/><path fill="#34A853" d="M8.98 17c2.16 0 3.97-.72 5.3-1.94l-2.6-2a4.8 4.8 0 0 1-7.18-2.54H1.83v2.07A8 8 0 0 0 8.98 17z"/><path fill="#FBBC05" d="M4.5 10.52a4.8 4.8 0 0 1 0-3.04V5.41H1.83a8 8 0 0 0 0 7.18l2.67-2.07z"/><path fill="#EA4335" d="M8.98 4.18c1.17 0 2.23.4 3.06 1.2l2.3-2.3A8 8 0 0 0 1.83 5.4L4.5 7.49a4.77 4.77 0 0 1 4.48-3.3z"/></svg> Sign in with Google';
 
