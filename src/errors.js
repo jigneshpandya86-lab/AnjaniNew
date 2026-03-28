@@ -15,12 +15,14 @@
 
 import * as Sentry from '@sentry/browser';
 
-const SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN;
+// import.meta.env is Vite-only — use optional chaining so this file works
+// on GitHub Pages (no bundler) and in Vite dev equally.
+const SENTRY_DSN = import.meta.env?.VITE_SENTRY_DSN;
 
 if (SENTRY_DSN) {
   Sentry.init({
     dsn: SENTRY_DSN,
-    environment: import.meta.env.MODE,          // 'development' or 'production'
+    environment: import.meta.env?.MODE ?? 'production',
     release: 'anjani-water-app@1.0.0',
     tracesSampleRate: 0.1,                       // 10% of transactions traced
     beforeSend(event) {
