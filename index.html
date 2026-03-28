@@ -5,7 +5,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="theme-color" content="#0c4a6e">
+  <meta name="theme-color" content="#232F3E">
   <base target="_top">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
   <title>ANJANI</title>
@@ -25,30 +25,31 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/feather-icons/4.29.0/feather.min.js"></script>
 
   <style>
-    /* ── ANJANI WATER · CALM WATER THEME ── */
+    /* ── ANJANI WATER · AMAZON THEME ── */
     :root {
-      --water-deep:   #0c4a6e;
-      --water-mid:    #0369a1;
-      --water-light:  #38bdf8;
-      --water-pale:   #e0f2fe;
-      --ripple:       rgba(14,165,233,0.08);
-      --text-primary: #0c2340;
-      --text-muted:   #64748b;
+      --amz-darkest:  #131921;
+      --amz-dark:     #232F3E;
+      --amz-mid:      #37475A;
+      --amz-orange:   #FF9900;
+      --amz-orange-lt:#FEBD69;
+      --amz-teal:     #007185;
+      --amz-bg:       #EAEDED;
+      --text-primary: #0F1111;
+      --text-muted:   #565959;
     }
-    .pac-container { z-index: 100000 !important; background-color: white; border: 1px solid #ccc; border-radius: 12px; box-shadow: 0 10px 30px rgba(12,74,110,0.12); }
+    .pac-container { z-index: 100000 !important; background-color: white; border: 1px solid #D5D9D9; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); }
     .pac-item { padding: 10px; cursor: pointer; }
     body {
       font-family: 'Nunito', -apple-system, BlinkMacSystemFont, sans-serif;
       -webkit-tap-highlight-color: transparent;
-      background: #f8fafc;
-      background-image: radial-gradient(ellipse at 0% 0%, rgba(14,165,233,0.04) 0%, transparent 60%), radial-gradient(ellipse at 100% 100%, rgba(56,189,248,0.04) 0%, transparent 60%);
+      background: #EAEDED;
     }
     .no-scrollbar::-webkit-scrollbar { display: none; }
-    .nav-item.active { background: linear-gradient(135deg, #e0f2fe, rgba(14,165,233,0.12)); color: #0369a1; border-right: 3px solid #38bdf8; box-shadow: 0 2px 8px rgba(14,165,233,0.12); font-weight: 800; }
-    .nav-item { color: #64748b; border-right: 3px solid transparent; transition: all 0.2s; }
-    .nav-item:hover { background: rgba(14,165,233,0.06); color: #0c2340; }
-    .mob-item.active { color: #0369a1; font-weight: 900; }
-    .mob-item { color: #94a3b8; transition: all 0.2s; }
+    .nav-item.active { background: rgba(255,153,0,0.15); color: #FF9900; border-right: 3px solid #FF9900; box-shadow: none; font-weight: 800; }
+    .nav-item { color: #ADBAC7; border-right: 3px solid transparent; transition: all 0.2s; }
+    .nav-item:hover { background: rgba(255,255,255,0.08); color: #ffffff; }
+    .mob-item.active { color: #FF9900; font-weight: 900; }
+    .mob-item { color: #8d9db0; transition: all 0.2s; }
     .status-strip-New { border-left: 4px solid #3b82f6; }
     .status-strip-Sample { border-left: 4px solid #a855f7; }
     .status-strip-Follow-up { border-left: 4px solid #f97316; }
@@ -94,7 +95,7 @@
       font-size: 10px; font-weight: bold; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
   </style>
 </head>
-<body class="bg-slate-50 text-slate-800 h-screen w-screen overflow-hidden flex flex-col lg:flex-row">
+<body class="h-screen w-screen overflow-hidden flex flex-col lg:flex-row" style="background:#EAEDED;color:#0F1111">
 
 <!-- Offline banner -->
 <div id="offline-banner">⚡ OFFLINE MODE — Changes are queued and will sync when connected</div>
@@ -157,9 +158,9 @@
 </div>
 
 <!-- ===================== SIDEBAR (DESKTOP) ===================== -->
-<aside class="hidden lg:flex w-64 bg-white flex-col h-full border-r border-sky-100 z-20" style="background:linear-gradient(180deg,#f0f9ff 0%,#ffffff 100%)">
-  <div class="h-20 flex items-center px-6 border-b" style="border-color:rgba(14,165,233,0.12)">
-    <h1 class="font-black text-xl tracking-wide" style="color:#0c4a6e">ANJANI<span style="color:#0ea5e9">WATER</span></h1>
+<aside class="hidden lg:flex w-64 flex-col h-full z-20" style="background:#232F3E;border-right:1px solid #131921">
+  <div class="h-20 flex items-center px-6 border-b" style="border-color:rgba(255,255,255,0.1)">
+    <h1 class="font-black text-xl tracking-wide" style="color:#ffffff">ANJANI<span style="color:#FF9900">WATER</span></h1>
   </div>
   <nav class="flex-1 py-6 space-y-1">
     <button onclick="go('orders')" id="d-btn-orders" class="nav-item active w-full flex items-center px-6 py-4 font-bold text-sm"><i data-feather="shopping-cart" class="mr-3 w-5 h-5"></i> ORDERS</button>
@@ -171,8 +172,8 @@
     <button onclick="go('dashboard')" id="d-btn-dashboard" class="nav-item w-full flex items-center px-6 py-4 font-bold text-sm"><i data-feather="grid" class="mr-3 w-5 h-5"></i> DASHBOARD</button>
   </nav>
   <!-- Offline status in sidebar -->
-  <div id="sidebar-status" class="p-4 border-t border-slate-100">
-    <div id="connection-status" class="text-xs font-bold text-slate-400 flex items-center gap-2">
+  <div id="sidebar-status" class="p-4 border-t" style="border-color:rgba(255,255,255,0.1)">
+    <div id="connection-status" class="text-xs font-bold flex items-center gap-2" style="color:#ADBAC7">
       <span id="conn-dot" class="w-2 h-2 rounded-full bg-green-400"></span>
       <span id="conn-text">Connected</span>
     </div>
@@ -180,13 +181,13 @@
 </aside>
 
 <!-- ===================== MOBILE HEADER ===================== -->
-<header class="lg:hidden fixed top-0 w-full h-16 backdrop-blur-md border-b flex items-center justify-between px-5 z-20" style="background:rgba(240,249,255,0.95);border-color:rgba(14,165,233,0.15);box-shadow:0 2px 16px rgba(14,165,233,0.08)">
-  <div class="font-black text-lg tracking-tight" style="color:#0c4a6e">ANJANI<span style="color:#0ea5e9">WATER</span></div>
-  <div id="date-badge" class="text-xs font-bold px-3 py-1 rounded-full" style="background:#e0f2fe;color:#0369a1;border:1px solid rgba(14,165,233,0.2)">...</div>
+<header class="lg:hidden fixed top-0 w-full h-16 border-b flex items-center justify-between px-5 z-20" style="background:#232F3E;border-color:#131921;box-shadow:0 2px 12px rgba(0,0,0,0.3)">
+  <div class="font-black text-lg tracking-tight" style="color:#ffffff">ANJANI<span style="color:#FF9900">WATER</span></div>
+  <div id="date-badge" class="text-xs font-bold px-3 py-1 rounded-full" style="background:#37475A;color:#FF9900;border:1px solid rgba(255,153,0,0.3)">...</div>
 </header>
 
 <!-- ===================== MAIN CONTENT ===================== -->
-<main class="main-content flex-1 h-full relative overflow-y-auto no-scrollbar pt-20 lg:pt-8 pb-32 lg:pb-8 px-4 lg:px-8" style="background:#f0f9ff;background-image:radial-gradient(ellipse at 10% 0%,rgba(14,165,233,0.06) 0%,transparent 50%)">
+<main class="main-content flex-1 h-full relative overflow-y-auto no-scrollbar pt-20 lg:pt-8 pb-32 lg:pb-8 px-4 lg:px-8" style="background:#EAEDED">
   <div id="pdf-hidden-factory" class="fixed top-0 left-0 -z-50 opacity-0 pointer-events-none w-[400px] bg-white"></div>
 
   <!-- ===== ORDERS VIEW ===== -->
@@ -584,7 +585,7 @@
 </main>
 
 <!-- ===== MOBILE NAV ===== -->
-<nav class="lg:hidden fixed bottom-0 w-full flex justify-around items-center h-20 pb-safe z-40" style="background:rgba(240,249,255,0.97);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:1px solid rgba(14,165,233,0.15);box-shadow:0 -4px 24px rgba(14,165,233,0.1)">
+<nav class="lg:hidden fixed bottom-0 w-full flex justify-around items-center h-20 pb-safe z-40" style="background:#232F3E;border-top:1px solid #131921;box-shadow:0 -4px 16px rgba(0,0,0,0.3)">
   <button onclick="go('orders')" id="m-btn-orders" class="mob-item active flex flex-col items-center justify-center w-12 h-full gap-1"><i data-feather="shopping-cart" class="w-5 h-5"></i><span class="text-xs font-medium">Orders</span></button>
   <button onclick="go('payments')" id="m-btn-payments" class="mob-item flex flex-col items-center justify-center w-12 h-full gap-1"><i data-feather="credit-card" class="w-5 h-5"></i><span class="text-xs font-medium">Pay</span></button>
   <button onclick="go('customers')" id="m-btn-customers" class="mob-item flex flex-col items-center justify-center w-12 h-full gap-1"><i data-feather="users" class="w-5 h-5"></i><span class="text-xs font-medium">AI</span></button>
@@ -686,8 +687,8 @@
 </div>
 
 <!-- ===== LOGIN SCREEN ===== -->
-<div id="login-screen" class="fixed inset-0 z-[10000] flex flex-col items-center justify-center text-center" style="background:linear-gradient(160deg,#0c4a6e 0%,#0369a1 50%,#0ea5e9 100%)">
-  <div class="p-8 rounded-3xl w-80" id="login-card" style="background:rgba(255,255,255,0.95);backdrop-filter:blur(20px);box-shadow:0 20px 60px rgba(12,74,110,0.3),0 0 0 1px rgba(255,255,255,0.5)">
+<div id="login-screen" class="fixed inset-0 z-[10000] flex flex-col items-center justify-center text-center" style="background:linear-gradient(160deg,#131921 0%,#232F3E 60%,#37475A 100%)">
+  <div class="p-8 rounded-3xl w-80" id="login-card" style="background:rgba(255,255,255,0.97);backdrop-filter:blur(20px);box-shadow:0 20px 60px rgba(0,0,0,0.5),0 0 0 1px rgba(255,255,255,0.3)">
     <div class="mb-6"><div class="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto shadow-lg"><span class="text-3xl">💧</span></div></div>
     <h2 class="text-2xl font-bold text-slate-800 mb-2">Anjani Water</h2>
     <p class="text-slate-500 text-sm mb-5">Sign in to access dashboard</p>
@@ -713,7 +714,7 @@
 </div>
 
 <!-- ===== REFRESH BUTTON ===== -->
-<button onclick="forceRefresh()" class="fixed bottom-24 right-4 md:bottom-8 md:right-8 w-12 h-12 rounded-full shadow-xl flex items-center justify-center z-50 active:scale-90 transition-transform group" style="background:linear-gradient(135deg,#0369a1,#0ea5e9);box-shadow:0 4px 20px rgba(14,165,233,0.4);border:1px solid rgba(255,255,255,0.2)">
+<button onclick="forceRefresh()" class="fixed bottom-24 right-4 md:bottom-8 md:right-8 w-12 h-12 rounded-full shadow-xl flex items-center justify-center z-50 active:scale-90 transition-transform group" style="background:linear-gradient(135deg,#FF9900,#FEBD69);box-shadow:0 4px 20px rgba(255,153,0,0.4);border:1px solid rgba(255,255,255,0.2)">
   <i data-feather="refresh-cw" class="w-5 h-5 group-hover:animate-spin"></i>
 </button>
 
