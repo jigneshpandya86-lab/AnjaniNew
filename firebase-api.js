@@ -257,6 +257,76 @@ const GAS = {
     return JSON.stringify({ success: true });
   },
 
+  async processIndiaMartEmails(emailsArray) {
+    const emails = typeof emailsArray === 'string' ? JSON.parse(emailsArray) : emailsArray;
+    let count = 0;
+    const sessionNumbers = new Set();
+
+    for (const email of emails) {
+      try {
+        const plainBody = email.body || '';
+        const htmlBody  = email.htmlBody || '';
+        const subject   = email.subject || '';
+        const massiveBlock = plainBody + ' ' + htmlBody;
+
+        let validMob = null;
+        const rawMatches = massiveBlock.match(/\d{10,13}/g) || [];
+
+        for (const raw of rawMatches) {
+          const clean = raw.slice(-10);
+          if (!['6','7','8','9'].includes(clean[0])) continue;
+          if (clean.startsWith('800') || clean.startsWith('1800')) continue;
+          if (sessionNumbers.has(clean)) { validMob = null; break; }
+          validMob = clean;
+          break;
+        }
+
+        if (validMob) {
+          sessionNumbers.add(validMob);
+
+          const lines = plainBody.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+          let extractedName = 'Unknown';
+          let loc = '';
+
+          const regardsIdx = lines.findIndex(l => l.toLowerCase().startsWith('regards'));
+          if (regardsIdx !== -1 && regardsIdx + 1 < lines.length) {
+            extractedName = lines[regardsIdx + 1];
+            for (let i = regardsIdx + 2; i < regardsIdx + 8; i++) {
+              if (i >= lines.length) break;
+              const line = lines[i];
+              const low  = line.toLowerCase();
+              if (low.includes('@') || low.includes('mobile') || low.includes('call')) continue;
+              if (line.replace(/\D/g, '').includes(validMob)) continue;
+              if (low.includes('member since') || low.includes('gst') || low.includes('verified') || line.length < 3) continue;
+              loc = line;
+              break;
+            }
+          }
+
+          const prodMatch = subject.match(/Enquiry for\s+(.+?)(\s+from|$)/i);
+          const product   = prodMatch ? prodMatch[1].trim() : 'General Enquiry';
+          const finalName = extractedName !== 'Unknown' ? `${extractedName} IndiaMART Lead` : 'IndiaMART Lead';
+
+          await GAS.saveLead({
+            mobile: validMob,
+            name: finalName,
+            raw: `${finalName} | ${loc} | ${product} | ${validMob}`,
+            notes: `Name: ${finalName}\nAddr: ${loc}\nQty: ${product}`
+          });
+          count++;
+        }
+      } catch (e) {
+        console.error('[IndiaMART] Email Error:', e.message);
+      }
+    }
+
+    return JSON.stringify({ success: true, processed: count });
+  },
+
+  async processIndiaMartEmail(body, subject) {
+    return GAS.processIndiaMartEmails([{ body, htmlBody: '', subject: subject || '' }]);
+  },
+
   async saveJob(data) {
     const d = typeof data === 'string' ? JSON.parse(data) : data;
     const action = d.action || 'CREATE';
