@@ -696,6 +696,18 @@ if ('serviceWorker' in navigator) {
 // The polyfill above means zero code changes are needed
 // ============================================================
 // ============================================================
+// HTML SANITIZATION HELPER
+// ============================================================
+function esc(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+// ============================================================
 // GLOBAL STATE
 // ============================================================
 const STAFF_NUM = "7990943652";
@@ -1005,17 +1017,17 @@ if (skuEl) {
       const val = isProd ? '+' + s.produced : '-' + s.delivered;
       const color = isProd ? 'text-emerald-600 bg-emerald-50' : 'text-red-600 bg-red-50';
       const icon = isProd ? '🏭' : '🚚';
-      const desc = s.customer ? s.customer : (isProd ? 'Production' : 'Delivery');
+      const desc = s.customer ? esc(s.customer) : (isProd ? 'Production' : 'Delivery');
       const isToday = s.date === todayStr;
       return `<div class="p-3 flex justify-between items-center hover:bg-slate-50 ${isToday ? 'bg-blue-50/30' : ''}">
         <div class="flex items-center gap-2">
           <span class="text-base">${icon}</span>
           <div>
-            <div class="text-xs font-bold text-slate-700">${s.date} ${isToday ? '<span class="text-[9px] text-blue-500 font-bold">TODAY</span>' : ''}</div>
+            <div class="text-xs font-bold text-slate-700">${esc(s.date)} ${isToday ? '<span class="text-[9px] text-blue-500 font-bold">TODAY</span>' : ''}</div>
             <div class="text-[10px] text-slate-400 font-medium">${desc}</div>
           </div>
         </div>
-        <span class="font-black text-sm px-2 py-1 rounded-lg ${color}">${val}</span>
+        <span class="font-black text-sm px-2 py-1 rounded-lg ${color}">${esc(val)}</span>
       </div>`;
     }).join('');
   }
@@ -1091,7 +1103,7 @@ function render() {
     let html = `<div id="ord-card-${o.id}" class="${bgClass} p-4 rounded-2xl shadow-sm border mb-3 relative overflow-hidden group transition-all duration-500">`;
     html += '<div class="flex justify-between items-start mb-3">';
     html += '<div class="min-w-0 pr-2">';
-    html += `<h4 class="font-bold text-slate-800 text-sm truncate leading-tight flex items-center gap-2"> <span class="bg-blue-100 text-blue-700 text-[10px] px-1 rounded mr-1">#${o.id}</span><span class="bg-slate-100 text-slate-500 text-[10px] px-1 rounded mr-1">${o.sku || '200ml'}</span> ${o.customer}<button onclick="startQuickPay('${o.clientId||''}', ${o.amount||0})" class="w-6 h-6 rounded-full bg-purple-50 text-purple-600 border border-purple-100 flex items-center justify-center active:scale-95 transition hover:bg-purple-100"><i data-feather="credit-card" class="w-3 h-3"></i></button></h4>`;
+    html += `<h4 class="font-bold text-slate-800 text-sm truncate leading-tight flex items-center gap-2"> <span class="bg-blue-100 text-blue-700 text-[10px] px-1 rounded mr-1">#${esc(o.id)}</span><span class="bg-slate-100 text-slate-500 text-[10px] px-1 rounded mr-1">${esc(o.sku || '200ml')}</span> ${esc(o.customer)}<button onclick="startQuickPay('${esc(o.clientId||'')}', ${Number(o.amount)||0})" class="w-6 h-6 rounded-full bg-purple-50 text-purple-600 border border-purple-100 flex items-center justify-center active:scale-95 transition hover:bg-purple-100"><i data-feather="credit-card" class="w-3 h-3"></i></button></h4>`;
     html += `<div class="flex items-center mt-0.5 text-slate-400"><i data-feather="map-pin" class="w-3 h-3 mr-1 shrink-0"></i><input id="a-${o.id}" type="text" value="${(o.address||'').replace(/"/g,'&quot;')}" class="text-[10px] text-slate-500 bg-transparent border-b border-transparent hover:border-slate-200 focus:border-blue-400 outline-none w-full truncate" placeholder="Add Address"></div>`;
     html += '</div>';
     html += '<div class="flex items-center gap-1">';
@@ -3047,7 +3059,7 @@ function startSmsTimer(seconds) {
 }
 
 function finishSmsBatch(status) { smsBatchActive = false; logSms(status); resetSmsButton(); const btn=document.getElementById('btn-sms-run'); btn.innerHTML='<i data-feather="check"></i> DONE'; feather.replace(); alert(status); }
-function logSms(msg) { const el=document.getElementById('sms-console'); if(el){const time=new Date().toLocaleTimeString().split(' ')[0]; el.innerHTML+=`<div class="border-l-2 border-slate-600 pl-2 mb-1"><span class="text-slate-500">[${time}]</span> ${msg}</div>`; el.scrollTop=el.scrollHeight;} }
+function logSms(msg) { const el=document.getElementById('sms-console'); if(el){const time=new Date().toLocaleTimeString().split(' ')[0]; const row=document.createElement('div'); row.className='border-l-2 border-slate-600 pl-2 mb-1'; const ts=document.createElement('span'); ts.className='text-slate-500'; ts.textContent='['+time+'] '; row.appendChild(ts); row.appendChild(document.createTextNode(msg)); el.appendChild(row); el.scrollTop=el.scrollHeight;} }
 
 // ============================================================
 // NOTES
