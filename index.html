@@ -1136,7 +1136,7 @@ function render() {
   if (stockView && !stockView.classList.contains('hidden')) renderStockPage();
   renderCustomers('');
   if (highlightID) { setTimeout(() => { const el = document.getElementById('ord-card-'+highlightID); if(el) { el.scrollIntoView({behavior:'smooth',block:'center'}); highlightID = null; } }, 500); }
-  try { feather.replace(); } catch(e){}
+  try { feather.replace(); } catch(e){ console.warn('[feather]', e.message); }
 }
 
 // ============================================================
@@ -1301,7 +1301,7 @@ function renderRecentPayments() {
     let waBtn = mob && mob.length>5 ? `<a href="https://wa.me/91${mob}?text=${encodeURIComponent(msg)}" target="_blank" class="w-8 h-8 rounded-full bg-green-50 text-green-600 flex items-center justify-center border border-green-100 shadow-sm active:scale-95 transition ml-3"><i data-feather="message-circle" class="w-4 h-4"></i></a>` : '';
     return `<div class="p-3 flex justify-between items-center text-sm hover:bg-slate-50 transition border-b border-slate-50"><div><div class="font-bold text-slate-700">${p.customer}</div><div class="text-[10px] text-slate-400 font-mono">${shortDate} • ${p.mode||'Cash'}</div></div><div class="flex items-center"><div class="font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded border border-emerald-100 text-xs">+₹${p.amount}</div>${waBtn}</div></div>`;
   }).join('');
-  try { feather.replace(); } catch(e){}
+  try { feather.replace(); } catch(e){ console.warn('[feather]', e.message); }
 }
 
 function startQuickPay(id, amount) {
@@ -1355,7 +1355,7 @@ const trueOverdue = bal - recentAmt;
     l.innerHTML += html;
   });
   if (!foundCount) l.innerHTML = `<div class="text-center p-10 text-slate-300 text-xs">${s==='FLAGGED'?'No pending dues found! 🎉':'No customers found'}</div>`;
-  try { feather.replace(); } catch(e){}
+  try { feather.replace(); } catch(e){ console.warn('[feather]', e.message); }
 }
 
 function quickPay(custId, custName, bal) {
@@ -1401,7 +1401,7 @@ const bal = Number(c.outstanding) || 0;
     else allTxns.forEach(t => { h.innerHTML += `<div class="p-3 border-b flex justify-between items-center"><div><div class="font-bold text-xs">${t.label}</div><div class="text-[10px] text-slate-400">${t.date}</div></div><div class="font-mono font-bold text-sm ${t.type==='order'?'text-red-600':'text-green-600'}">${t.type==='order'?'-':'+'} ₹${t.amount}</div></div>`; });
   }
   go('cust-detail');
-  try { feather.replace(); } catch(e){}
+  try { feather.replace(); } catch(e){ console.warn('[feather]', e.message); }
 }
 
 function openCustForm(isEdit) {
@@ -1515,7 +1515,7 @@ function renderLeads() {
     const btn = document.getElementById('lf-'+f);
     if (btn) btn.className = leadFilter===f ? "px-3 py-1.5 rounded-md text-xs font-bold transition bg-white text-blue-600 shadow-sm border border-slate-200" : "px-3 py-1.5 rounded-md text-xs font-medium transition text-slate-500 hover:bg-slate-200";
   });
-  try { feather.replace(); } catch(e){}
+  try { feather.replace(); } catch(e){ console.warn('[feather]', e.message); }
 }
 
 function runLeadAction(action, id) {
@@ -2958,7 +2958,7 @@ function playBeep() {
     const now = audioCtx.currentTime;
     gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.001, now+0.5);
     osc.start(now); osc.stop(now+0.5);
-  } catch(e){}
+  } catch(e){ console.debug('[audio]', e.message); }
 }
 
 // ============================================================
