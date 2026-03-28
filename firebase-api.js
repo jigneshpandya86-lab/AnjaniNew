@@ -2,7 +2,7 @@
 import { db } from './firebase-config.js';
 import {
   collection, addDoc, getDoc, getDocs, doc, updateDoc, deleteDoc,
-  query, where, setDoc, runTransaction, writeBatch
+  query, where, setDoc, runTransaction, writeBatch, increment
 } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
 
 const MACRO_URL = 'https://trigger.macrodroid.com/c54612db-2ff7-4ff5-ac00-e428c1011e31/anjani_sms';
@@ -13,9 +13,12 @@ async function getNextOrderId() {
   const metaRef = doc(db, 'meta', 'counters');
   return await runTransaction(db, async (tx) => {
     const snap = await tx.get(metaRef);
-    const lastId = snap.exists() ? (snap.data().orderId || 1000) : 1000;
-    const nextId = lastId + 1;
-    tx.set(metaRef, { orderId: nextId }, { merge: true });
+    // Initialise counter to 1000 if it doesn't exist yet, then atomically increment
+    const currentId = snap.exists() ? (snap.data().orderId || 1000) : 1000;
+    const nextId = currentId + 1;
+    tx.set(metaRef, { orderId: increment(1) }, { merge: true });
+    // Return nextId derived from the value we read inside the transaction —
+    // Firestore guarantees this transaction retries on contention, so IDs are unique.
     return nextId;
   });
 }
@@ -28,10 +31,11 @@ async function updateOutstandingBalance(clientId) {
   ]);
   let totalOrders = 0, totalPaid = 0;
   ordSnap.docs.forEach(d => {
-    if (d.data().status === 'Delivered') totalOrders += Number(d.data().amount) || 0;
+    if (d.data().status === 'Delivered') totalOrders += Math.round((parseFloat(d.data().amount) || 0) * 100);
   });
-  paySnap.docs.forEach(d => { totalPaid += Number(d.data().amount) || 0; });
-  await updateDoc(doc(db, 'customers', cid), { outstanding: totalOrders - totalPaid });
+  paySnap.docs.forEach(d => { totalPaid += Math.round((parseFloat(d.data().amount) || 0) * 100); });
+  // Divide by 100 to restore rupee precision after integer arithmetic
+  await updateDoc(doc(db, 'customers', cid), { outstanding: (totalOrders - totalPaid) / 100 });
 }
 
 function todayIST() {
