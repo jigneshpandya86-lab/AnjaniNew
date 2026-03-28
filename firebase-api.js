@@ -62,7 +62,12 @@ const GAS = {
       customers: custSnap.docs.map(d => ({ id: d.id, ...d.data() })),
       orders:    ordSnap.docs.map(d => ({ id: d.id, ...d.data() })),
       payments:  paySnap.docs.map(d => ({ id: d.id, ...d.data() })),
-      stock:     stockSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+      stock:     stockSnap.docs.map(d => {
+        const s = d.data();
+        // Normalize old docs that saved 'qty' instead of 'produced'
+        if (s.produced === undefined && s.qty !== undefined) s.produced = Number(s.qty);
+        return { id: d.id, ...s };
+      }),
       jobs:      jobSnap.docs.map(d => ({ id: d.id, ...d.data() })),
       smartMsgs
     });
@@ -332,7 +337,7 @@ const GAS = {
     const totalOutstanding = customers.reduce((s, c) => s + (Number(c.outstanding) || 0), 0);
     const pendingOrders = orders.filter(o => o.status === 'Pending' || o.status === 'Processing').length;
 
-    return JSON.stringify({
+    const result = {
       TODAY: periodMetrics(todayStr),
       WEEK:  periodMetrics(weekStr),
       MONTH: periodMetrics(monthStr),
@@ -341,7 +346,9 @@ const GAS = {
         outstanding: totalOutstanding,
         stock:       netStock
       }
-    });
+    };
+    console.log('[Dashboard] metrics:', JSON.stringify(result));
+    return JSON.stringify(result);
   },
 
   async getSmsCandidates() {
