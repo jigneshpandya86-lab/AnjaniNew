@@ -1,0 +1,19 @@
+{
+  "name": "anjani-water-app",
+  "version": "1.0.0",
+  "description": "Anjani Water Supply Management PWA",
+  "type": "module",
+  "scripts": {
+    "dev": "npx serve .",
+    "deploy": "firebase deploy"
+  },
+  "dependencies": {
+    "firebase": "^10.8.0"
+  },
+  "devDependencies": {
+    "firebase-tools": "^13.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
