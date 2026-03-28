@@ -135,10 +135,11 @@ const GAS = {
 
   async saveCustomer(data) {
     const d = typeof data === 'string' ? JSON.parse(data) : data;
+    const isEdit = !!d.isEdit;
+    delete d.isEdit;
     const cid = String(d.id || d.mobile || Date.now());
     d.id = cid;
-    if (d.isEdit) {
-      delete d.isEdit;
+    if (isEdit) {
       await updateDoc(doc(db, 'customers', cid), d);
     } else {
       d.outstanding = d.outstanding !== undefined ? d.outstanding : 0;
