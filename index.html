@@ -43,6 +43,8 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/feather-icons/4.29.0/feather.min.js"
           integrity="sha384-RyE9TSx1shZZA6GS7TToIk1J7zY1mU8evbLDXYgOz4zgduwPFEtnHd1bswt8PG/u"
           crossorigin="anonymous"></script>
+  <!-- Google Identity Services — for Gmail OAuth access token -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 
   <style>
     /* ── ANJANI WATER · CALM WATER THEME ── */
@@ -472,6 +474,7 @@
       <div class="flex gap-2">
         <input type="text" id="lead-input" placeholder="Paste Number or Text..." class="flex-1 bg-slate-50 border border-slate-200 text-slate-800 text-sm rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 transition shadow-inner font-medium placeholder:text-slate-400">
         <button onclick="addLead()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 rounded-lg text-sm shadow-md active:scale-95 transition">SAVE</button>
+        <button onclick="triggerGmailScan()" id="btn-gmail-scan" class="flex items-center gap-1 bg-red-50 text-red-600 border border-red-200 font-bold px-3 rounded-lg text-xs shadow-sm active:scale-95 transition hover:bg-red-100"><i data-feather="mail" class="w-3 h-3"></i> Scan</button>
       </div>
       <div class="text-[10px] text-slate-400 text-right mt-1 font-mono">New: <span id="stat-new">0</span> | Sample: <span id="stat-sample">0</span></div>
     </div>
@@ -1541,6 +1544,123 @@ function addLead() {
     loadData(); input.value = '';
     if (btn) { btn.disabled = false; btn.innerText = "SAVE"; }
   }).saveLead({raw: raw});
+}
+
+// ============================================================
+// GMAIL LEAD SCRAPER — scans IndiaMART enquiry emails and saves leads
+// ============================================================
+
+// ⚠️ Set this to your OAuth 2.0 Web Client ID from Google Cloud Console.
+// Steps: console.cloud.google.com → APIs → Gmail API → OAuth 2.0 Client IDs
+// Authorized JS origins: http://localhost:5173 (dev) + your production domain
+const GMAIL_CLIENT_ID = 'YOUR_GOOGLE_OAUTH_CLIENT_ID_HERE';
+
+function triggerGmailScan() {
+  if (!GMAIL_CLIENT_ID || GMAIL_CLIENT_ID === 'YOUR_GOOGLE_OAUTH_CLIENT_ID_HERE') {
+    showToast('Set GMAIL_CLIENT_ID in the code first', true);
+    return;
+  }
+  if (!window.google || !window.google.accounts || !window.google.accounts.oauth2) {
+    showToast('Google Identity Services not loaded yet. Try again.', true);
+    return;
+  }
+  const btn = document.getElementById('btn-gmail-scan');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i data-feather="loader" class="w-3 h-3 animate-spin"></i> ...'; feather.replace(); }
+
+  const tokenClient = window.google.accounts.oauth2.initTokenClient({
+    client_id: GMAIL_CLIENT_ID,
+    scope: 'https://www.googleapis.com/auth/gmail.modify',
+    callback: async (tokenResponse) => {
+      if (tokenResponse.error) {
+        showToast('Gmail auth failed: ' + tokenResponse.error, true);
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i data-feather="mail" class="w-3 h-3"></i> Scan'; feather.replace(); }
+        return;
+      }
+      await scanIndiamartEmails(tokenResponse.access_token);
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i data-feather="mail" class="w-3 h-3"></i> Scan'; feather.replace(); }
+    },
+  });
+  tokenClient.requestAccessToken();
+}
+
+async function scanIndiamartEmails(accessToken) {
+  const base = 'https://gmail.googleapis.com/gmail/v1/users/me';
+  const headers = { Authorization: 'Bearer ' + accessToken };
+
+  try {
+    // Search unread IndiaMART enquiry emails
+    const searchRes = await fetch(
+      base + '/messages?q=from:indiamart%20is:unread%20subject:Enquiry&maxResults=50',
+      { headers }
+    );
+    const searchData = await searchRes.json();
+    const messages = searchData.messages || [];
+
+    if (messages.length === 0) {
+      showToast('No new IndiaMART emails found');
+      return;
+    }
+
+    let saved = 0;
+    let skipped = 0;
+    for (const msg of messages) {
+      const msgRes = await fetch(base + '/messages/' + msg.id + '?format=full', { headers });
+      const msgData = await msgRes.json();
+      const body = _decodeGmailBody(msgData);
+      const subject = _getGmailHeader(msgData, 'Subject');
+
+      // Extract 10-digit Indian mobile number after "Mobile:"
+      const mobileMatch = body.match(/Mobile[:\s]+\+?\(?\s*91\s*\)?[-\s]*(\d{10})/i);
+      if (!mobileMatch) { skipped++; continue; }
+      const mobile = mobileMatch[1];
+
+      // Save as lead — merge:true so existing leads are not overwritten
+      await new Promise((resolve) => {
+        google.script.run.withSuccessHandler(resolve).withFailureHandler(resolve).saveLead({
+          mobile: mobile,
+          name: 'Facebook Lead',
+          status: 'New',
+          raw: subject || 'IndiaMART Enquiry',
+          source: 'IndiaMART',
+        });
+      });
+
+      // Mark email as read
+      await fetch(base + '/messages/' + msg.id + '/modify', {
+        method: 'POST',
+        headers: Object.assign({}, headers, { 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ removeLabelIds: ['UNREAD'] }),
+      });
+      saved++;
+    }
+
+    showToast('Scanned ' + messages.length + ' emails — ' + saved + ' leads saved, ' + skipped + ' skipped');
+    renderLeads();
+  } catch (err) {
+    console.error('[GmailScan]', err);
+    showToast('Scan error: ' + err.message, true);
+  }
+}
+
+function _decodeGmailBody(msgData) {
+  // Walk MIME parts to find text/plain payload
+  function extractText(part) {
+    if (!part) return '';
+    if (part.mimeType === 'text/plain' && part.body && part.body.data) {
+      try { return atob(part.body.data.replace(/-/g, '+').replace(/_/g, '/')); } catch(e) { return ''; }
+    }
+    if (part.parts) {
+      for (const sub of part.parts) { const t = extractText(sub); if (t) return t; }
+    }
+    return '';
+  }
+  return extractText(msgData.payload) || '';
+}
+
+function _getGmailHeader(msgData, name) {
+  const headers = (msgData.payload && msgData.payload.headers) || [];
+  const h = headers.find(function(h) { return h.name.toLowerCase() === name.toLowerCase(); });
+  return h ? h.value : '';
 }
 
 function setLeadFilter(f) { leadFilter = f; renderLeads(); }
