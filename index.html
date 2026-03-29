@@ -147,8 +147,8 @@
 <script>
   window.onerror = function(msg, url, line) {
     setTimeout(function() {
-      var log = document.getElementById('debug-log');
-      var loader = document.getElementById('loader');
+      const log = document.getElementById('debug-log');
+      const loader = document.getElementById('loader');
       if (log) { log.innerText = "Error (Line " + line + "): " + msg; log.classList.remove('hidden'); }
       if (loader) loader.classList.remove('hidden');
     }, 100);
