@@ -1,8 +1,11 @@
 {
   "name": "ANJANI WATER",
   "short_name": "ANJANI",
-  "start_url": "/",
+  "id": "/AnjaniNew/",
+  "start_url": "/AnjaniNew/",
+  "scope": "/AnjaniNew/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#0c4a6e",
   "theme_color": "#0c4a6e",
   "icons": [
