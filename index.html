@@ -864,6 +864,8 @@ window.onload = function() {
   // Load chat history
   loadHistory();
   var ph = document.getElementById('sj-ph'); if(ph && !ph.value) ph.value = '91' + STAFF_NUM;
+  // Handle Gmail OAuth redirect return (Android PWA compatible)
+  _checkGmailRedirectReturn();
 };
 
 async function loadData() {
@@ -1555,30 +1557,36 @@ function addLead() {
 // Authorized JS origins: http://localhost:5173 (dev) + your production domain
 const GMAIL_CLIENT_ID = '892497799371-otbj6a7ut2rcv3jnjlaoi4qserljcfoe.apps.googleusercontent.com';
 
+// Called on page load — detects return from Gmail OAuth redirect (Android PWA flow)
+function _checkGmailRedirectReturn() {
+  if (!window.location.hash.includes('access_token')) return;
+  const params = new URLSearchParams(window.location.hash.slice(1));
+  const token = params.get('access_token');
+  if (!token) return;
+  // Remove token from URL so it doesn't persist in browser history
+  history.replaceState(null, '', window.location.pathname + window.location.search);
+  go('leads');
+  showToast('Gmail connected, scanning emails...');
+  scanIndiamartEmails(token);
+}
+
 function triggerGmailScan() {
-  if (!GMAIL_CLIENT_ID || GMAIL_CLIENT_ID === 'YOUR_GOOGLE_OAUTH_CLIENT_ID_HERE') {
-    showToast('Set GMAIL_CLIENT_ID in the code first', true);
-    return;
-  }
   if (!window.google || !window.google.accounts || !window.google.accounts.oauth2) {
-    showToast('Google Identity Services not loaded yet. Try again.', true);
+    showToast('Google auth not loaded yet. Try again.', true);
     return;
   }
   const btn = document.getElementById('btn-gmail-scan');
   if (btn) { btn.disabled = true; btn.innerHTML = '<i data-feather="loader" class="w-3 h-3 animate-spin"></i> ...'; feather.replace(); }
 
+  // redirect_uri must match exactly what is registered in Google Cloud Console
+  // → Credentials → OAuth Client → Authorized redirect URIs
+  const redirectUri = window.location.origin + window.location.pathname.replace(/\/$/, '') + '/';
   const tokenClient = window.google.accounts.oauth2.initTokenClient({
     client_id: GMAIL_CLIENT_ID,
     scope: 'https://www.googleapis.com/auth/gmail.modify',
-    callback: async (tokenResponse) => {
-      if (tokenResponse.error) {
-        showToast('Gmail auth failed: ' + tokenResponse.error, true);
-        if (btn) { btn.disabled = false; btn.innerHTML = '<i data-feather="mail" class="w-3 h-3"></i> Scan'; feather.replace(); }
-        return;
-      }
-      await scanIndiamartEmails(tokenResponse.access_token);
-      if (btn) { btn.disabled = false; btn.innerHTML = '<i data-feather="mail" class="w-3 h-3"></i> Scan'; feather.replace(); }
-    },
+    ux_mode: 'redirect',          // works on Android PWA & all browsers
+    redirect_uri: redirectUri,
+    callback: () => {},           // not used in redirect mode; _checkGmailRedirectReturn handles it
   });
   tokenClient.requestAccessToken();
 }
