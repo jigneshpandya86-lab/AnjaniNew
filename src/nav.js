@@ -172,3 +172,17 @@ export function handleLogin(e) {
 
 // Expose it to the HTML button
 window.handleLogin = handleLogin;
+// ======================================================================
+// APP INITIALIZATION
+// ======================================================================
+export function initApp() {
+  // Trigger the initial data load when the app starts
+  if (typeof window._loadData === 'function') {
+    window._loadData();
+  } else if (typeof loadData === 'function') {
+    loadData();
+  }
+}
+
+// Expose it globally just in case HTML buttons or other scripts need it
+window.initApp = initApp;
