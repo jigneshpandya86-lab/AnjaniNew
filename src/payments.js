@@ -8,7 +8,12 @@ import { enqueueAction, showOfflineToast } from './sync.js';
 export function renderRecentPayments() {
   const list = document.getElementById('list-payments');
   if (!list) return;
-  const recent = (DB.payments||[]).slice().reverse().slice(0, 10);
+const recent = (DB.payments||[]).slice().sort((a, b) => {
+    // Strip out any accidental quotes from old Google Sheets data and compare
+    const dateA = (a.date || '').replace(/^'/, '');
+    const dateB = (b.date || '').replace(/^'/, '');
+    return dateB.localeCompare(dateA); // Sorts Newest to Oldest
+  }).slice(0, 10);
   if (!recent.length) { list.innerHTML = '<div class="p-4 text-center text-slate-300 text-xs">No recent transactions</div>'; return; }
   let quotes = ["Your trust is our real earning.","Quality is not an act, it is a habit.","Happiness flows like water.","Small steps lead to big results.","Gratitude turns what we have into enough.","Success is the sum of small efforts.","Good water, good life.","Purity you can taste.","Thank you for being our strength.","Every drop counts, just like you.","Health is the greatest wealth.","Kindness is free, sprinkle it everywhere.","Believe you can and you're halfway there.","Excellence is our standard.","Serve with a smile."];
   quotes.sort(() => Math.random() - 0.5);
