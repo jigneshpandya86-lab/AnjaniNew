@@ -77,4 +77,276 @@ export function viewCust(id) {
     (DB.orders||[]).forEach(o => { if(String(o.clientId)===String(c.id) && o.status!=='Pending') allTxns.push({type:'order', date:o.deliveryDate, amount:o.amount, label:'Order'}); });
     (DB.payments||[]).forEach(p => { if(String(p.clientId)===String(c.id)) allTxns.push({type:'pay', date:p.date, amount:p.amount, label:'Payment'}); });
     allTxns.sort((a,b)=>b.date.localeCompare(a.date));
-    if (!allTxns.length) h.innerHTML = '<div class="p-6 text
+    if (!allTxns.length) h.innerHTML = '<div class="p-6 text-center text-slate-300 text-xs">No transaction history</div>';
+    else allTxns.forEach(t => { h.innerHTML += `<div class="p-3 border-b flex justify-between items-center"><div><div class="font-bold text-xs">${t.label}</div><div class="text-[10px] text-slate-400">${t.date}</div></div><div class="font-mono font-bold text-sm ${t.type==='order'?'text-red-600':'text-green-600'}">${t.type==='order'?'-':'+'} ₹${t.amount}</div></div>`; });
+  }
+  if (typeof window.go === 'function') window.go('cust-detail');
+  try { feather.replace(); } catch(e){ console.warn('[feather]', e.message); }
+}
+
+export function openCustForm(isEdit) {
+  document.getElementById('modal-cust').classList.remove('hidden');
+  const currentCustID = window._currentCustID || null;
+  if (isEdit && currentCustID) {
+    const c = DB.customers.find(x => x.id === currentCustID);
+    document.getElementById('new-id').value = c.id; document.getElementById('new-name').value = c.name;
+    document.getElementById('new-mob').value = c.mobile; document.getElementById('new-map').value = c.map;
+    document.getElementById('new-rate').value = c.rate;
+  } else {
+    document.getElementById('new-id').value = ''; document.getElementById('new-name').value = '';
+    document.getElementById('new-mob').value = ''; document.getElementById('new-rate').value = '150';
+  }
+}
+
+// 🆕 UPDATED: Safe Save + Offline Sync
+export function saveClient(e) {
+  e.preventDefault();
+  const id = document.getElementById('new-id').value;
+  const name = document.getElementById('new-name').value;
+  const mobile = document.getElementById('new-mob').value;
+  
+  // Strict Validation
+  if (!name || !mobile) {
+    alert("⚠️ Customer Name and Mobile number are required.");
+    return;
+  }
+
+  const data = { 
+    isEdit: !!id, 
+    id: id || 'C-' + Date.now(), 
+    name: name, 
+    mobile: mobile, 
+    map: document.getElementById('new-map').value || '', 
+    rate: document.getElementById('new-rate').value || '150', 
+    active: true 
+  };
+
+  const btn = e.target.querySelector('button[type="submit"]');
+
+  // ── OFFLINE path ──
+  if (!navigator.onLine) {
+    if (!id) DB.customers.push(data); // Add new
+    else {
+      // Update existing
+      const idx = DB.customers.findIndex(c => c.id === id);
+      if (idx > -1) DB.customers[idx] = {...DB.customers[idx], ...data};
+    }
+    document.getElementById('modal-cust').classList.add('hidden');
+    renderCustomers('');
+    if (id) viewCust(id);
+    enqueueAction('saveCustomer', data);
+    showOfflineToast('📦 Customer saved offline');
+    return;
+  }
+
+  // ── ONLINE path ──
+  if (btn) { btn.disabled = true; btn.innerText = "SAVING..."; }
+
+  google.script.run
+    .withSuccessHandler(() => { 
+      if (typeof window._loadData === 'function') window._loadData(); 
+      document.getElementById('modal-cust').classList.add('hidden'); 
+      if (btn) { btn.disabled = false; btn.innerText = "SAVE"; }
+      if(id) viewCust(id); 
+      showToast('✅ Customer saved successfully!');
+    })
+    .withFailureHandler((err) => {
+      console.error("Save Client Error:", err);
+      showToast('❌ Save failed — saved offline instead', true);
+      
+      // Fallback
+      if (!id) DB.customers.push(data);
+      else {
+        const idx = DB.customers.findIndex(c => c.id === id);
+        if (idx > -1) DB.customers[idx] = {...DB.customers[idx], ...data};
+      }
+      document.getElementById('modal-cust').classList.add('hidden');
+      if (btn) { btn.disabled = false; btn.innerText = "SAVE"; }
+      renderCustomers('');
+      if (id) viewCust(id);
+      enqueueAction('saveCustomer', data);
+    })
+    .saveCustomer(data);
+}
+
+// 🆕 UPDATED: Safe Toggle + Offline Sync
+export function toggleCustActive(id) {
+  const c = DB.customers.find(x => x.id === id);
+  if (!c) return;
+  c.active = !(String(c.active) === 'true' || c.active === true);
+  viewCust(id); 
+  renderCustomers('');
+  
+  const data = {isEdit:true, id:c.id, name:c.name, mobile:c.mobile, map:c.map, rate:c.rate, opening:c.opening, flag:c.flag, active:c.active};
+
+  if (!navigator.onLine) {
+    enqueueAction('saveCustomer', data);
+    showOfflineToast('✅ Status change queued offline');
+    return;
+  }
+
+  google.script.run
+    .withSuccessHandler(() => { if (typeof window._loadData === 'function') window._loadData(); })
+    .withFailureHandler(() => {
+      enqueueAction('saveCustomer', data);
+      showOfflineToast('❌ Network error — change queued offline');
+    })
+    .saveCustomer(data);
+}
+
+// 🆕 UPDATED: Safe Toggle + Offline Sync
+export function toggleCustFlag(id) {
+  const c = DB.customers.find(x => x.id === id);
+  if (!c) return;
+  c.flag = !c.flag;
+  viewCust(id);
+  
+  const data = {isEdit:true, id:c.id, name:c.name, mobile:c.mobile, map:c.map, rate:c.rate, active:c.active, opening:c.opening, flag:c.flag};
+
+  if (!navigator.onLine) {
+    enqueueAction('saveCustomer', data);
+    showOfflineToast('✅ Flag change queued offline');
+    return;
+  }
+
+  google.script.run
+    .withSuccessHandler(() => { viewCust(id); if (typeof window._loadData === 'function') window._loadData(); })
+    .withFailureHandler(() => {
+      enqueueAction('saveCustomer', data);
+      showOfflineToast('❌ Network error — change queued offline');
+    })
+    .saveCustomer(data);
+}
+
+export function openLocationEditor(id, oldAddr) {
+  window._currentEditingOrderId = id;
+  const modal = document.getElementById('modal-loc-edit');
+  const oldDisplay = document.getElementById('loc-edit-old');
+  if (oldDisplay) oldDisplay.innerText = oldAddr || "No address found";
+  const input = document.getElementById('loc-edit-input');
+  if (input) { input.value = ''; input.classList.remove('border-green-500','border-red-500'); }
+  document.getElementById('loc-edit-link').value = '';
+  if (modal) modal.classList.remove('hidden');
+  setTimeout(initEditMap, 500);
+}
+
+let editMapInitialized = false;
+
+export function initEditMap() {
+  if (editMapInitialized) return;
+  try {
+    const input = document.getElementById('loc-edit-input');
+    if (!input) return;
+    const vadodaraBounds = {north:22.55, south:22.10, east:73.60, west:73.00};
+    const options = {bounds:vadodaraBounds, strictBounds:true, componentRestrictions:{country:"in"}, fields:["formatted_address","url","geometry"]};
+    const editAutocomplete = new google.maps.places.Autocomplete(input, options);
+    editAutocomplete.addListener("place_changed", () => {
+      const place = editAutocomplete.getPlace();
+      const hiddenUrl = document.getElementById("loc-edit-link");
+      if (!place.url) { hiddenUrl.value = ''; input.classList.add("border-red-500"); }
+      else { hiddenUrl.value = place.url; input.classList.remove("border-red-500"); input.classList.add("border-green-500","border-2"); }
+    });
+    input.addEventListener('input', function() {
+      const val = input.value.trim();
+      const hiddenUrl = document.getElementById("loc-edit-link");
+      if (val.toLowerCase().startsWith('http')) { hiddenUrl.value = val; input.classList.remove("border-red-500"); input.classList.add("border-green-500","border-2"); }
+      else if (val==='') { input.classList.remove("border-green-500","border-red-500","border-2"); hiddenUrl.value = ''; }
+    });
+    editMapInitialized = true;
+  } catch(e) { console.log("Edit Map Error: "+e.message); }
+}
+
+// 🆕 UPDATED: Safe Map Update + Offline Sync
+export function submitLocationUpdate() {
+  const btn = document.getElementById('btn-loc-update');
+  const inputVal = document.getElementById('loc-edit-input').value.trim();
+  let hiddenLink = document.getElementById('loc-edit-link').value;
+  if (inputVal.toLowerCase().startsWith('http')) hiddenLink = inputVal;
+  if (!hiddenLink) { alert("⚠️ Please select a location or paste a valid link (starting with http)."); return; }
+  
+  const currentEditingOrderId = window._currentEditingOrderId || null;
+  const data = {orderId:currentEditingOrderId, newAddress:inputVal, newMapLink:hiddenLink};
+
+  // ── OFFLINE path ──
+  if (!navigator.onLine) {
+    document.getElementById('modal-loc-edit').classList.add('hidden');
+    const addrInput = document.getElementById('a-'+currentEditingOrderId);
+    if(addrInput) addrInput.value = inputVal;
+    
+    // Update local DB to reflect change immediately
+    const o = DB.orders.find(x => String(x.id) === String(currentEditingOrderId));
+    if (o) { o.address = inputVal; o.mapLink = hiddenLink; }
+
+    enqueueAction('updateOrderLocation', data);
+    showOfflineToast('✅ Location update queued offline');
+    return;
+  }
+
+  // ── ONLINE path ──
+  const orgText = btn.innerText;
+  btn.innerText = "UPDATING..."; btn.disabled = true;
+
+  google.script.run
+    .withSuccessHandler((res) => {
+      btn.innerText = orgText; btn.disabled = false;
+      if (res==="SUCCESS" || !res.error) { 
+        document.getElementById('modal-loc-edit').classList.add('hidden'); 
+        const addrInput = document.getElementById('a-'+currentEditingOrderId); 
+        if(addrInput) addrInput.value = inputVal; 
+        showToast("✅ Location Updated!"); 
+        if (typeof window._loadData === 'function') window._loadData(); 
+      }
+      else alert("❌ Error: "+ (res.error || res));
+    })
+    .withFailureHandler((e) => { 
+      btn.innerText = orgText; btn.disabled = false; 
+      
+      // Fallback
+      document.getElementById('modal-loc-edit').classList.add('hidden');
+      const addrInput = document.getElementById('a-'+currentEditingOrderId);
+      if(addrInput) addrInput.value = inputVal;
+      const o = DB.orders.find(x => String(x.id) === String(currentEditingOrderId));
+      if (o) { o.address = inputVal; o.mapLink = hiddenLink; }
+      
+      enqueueAction('updateOrderLocation', data);
+      showOfflineToast('❌ Network error — queued for sync');
+    })
+    .updateOrderLocation(data);
+}
+
+// 🆕 UPDATED: Safe Save Note + Offline Sync
+export function openNote(id) {
+  const lead = DB.leads.find(l => l.id === id);
+  const currentNote = lead ? (lead.notes||'') : '';
+  const noteLeadIdEl = document.getElementById('note-lead-id');
+  if (noteLeadIdEl) noteLeadIdEl.value = id;
+  document.getElementById('note-input').value = currentNote;
+  document.getElementById('note-modal').classList.remove('hidden');
+  document.getElementById('note-input').focus();
+}
+
+export function saveNote() {
+  const id = document.getElementById('note-lead-id').value;
+  const text = document.getElementById('note-input').value;
+  document.getElementById('note-modal').classList.add('hidden');
+  
+  const lead = DB.leads.find(l => String(l.id) === String(id));
+  if (lead) lead.notes = text;
+  if (typeof window._renderLeads === 'function') window._renderLeads();
+
+  const data = {id: id, text: text};
+
+  if (!navigator.onLine) {
+    enqueueAction('saveLeadNote', data);
+    showOfflineToast('✅ Note saved offline');
+    return;
+  }
+
+  google.script.run
+    .withSuccessHandler(() => { /* handled by sync/realtime */ })
+    .withFailureHandler(() => {
+      enqueueAction('saveLeadNote', data);
+      showOfflineToast('❌ Network error — note saved offline');
+    })
+    .saveLeadNote(data);
+}
