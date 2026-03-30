@@ -607,6 +607,6 @@ window.google = Object.assign(window.google || {}, {
       }
     })
   }
-};
+});
 
 console.log('[AnjaniApp] Firebase API bridge loaded ✅');
