@@ -3,9 +3,11 @@
 // ============================================================
 import { DB, CONFIG } from './state.js';
 import { esc, showToast } from './utils.js';
+import { enqueueAction, showOfflineToast } from './sync.js'; // 🆕 Added Sync Imports
 
 export function renderCustomers(s) {
   const l = document.getElementById('list-customers');
+  if (!l) return;
   l.innerHTML = '';
   const statusEl = document.getElementById('cust-filter-status');
   if (s === 'FLAGGED') { statusEl.classList.remove('hidden'); statusEl.innerHTML = 'Showing Clients with Dues (<span class="text-blue-600 font-bold cursor-pointer underline" onclick="renderCustomers(\'\')">Clear</span>)'; }
@@ -18,14 +20,14 @@ export function renderCustomers(s) {
   (DB.orders||[]).forEach(o => { if(o.status!=='Pending') updateDate(o.clientId, o.customer, o.deliveryDate); });
   (DB.payments||[]).forEach(p => { updateDate(p.clientId, p.customer, p.date); });
   const sortedList = (DB.customers||[]).slice().sort((a,b) => { const dA=lastActiveMap[a.id]||lastActiveMap[a.name]||'2000-01-01'; const dB=lastActiveMap[b.id]||lastActiveMap[b.name]||'2000-01-01'; return dB.localeCompare(dA); });
-  const cutoffStr = new Date(Date.now()-CONFIG.LEAD_CUTOFF_DAYS*86400000).toISOString().split('T')[0];
+  const cutoffStr = new Date(Date.now()- (CONFIG?.LEAD_CUTOFF_DAYS || 30) *86400000).toISOString().split('T')[0];
   let foundCount = 0;
   sortedList.forEach(function(c) {
     const safeName = String(c.name||"Unknown");
     if (s && s !== 'FLAGGED' && !safeName.toLowerCase().includes(s.toLowerCase())) return;
     const bal = Number(c.outstanding) || 0;
-const recentAmt = (DB.orders||[]).filter(o => String(o.clientId)===String(c.id) && o.status!=='Pending' && o.deliveryDate>=cutoffStr).reduce((s,o)=>s+(+o.amount),0);
-const trueOverdue = bal - recentAmt;
+    const recentAmt = (DB.orders||[]).filter(o => String(o.clientId)===String(c.id) && o.status!=='Pending' && o.deliveryDate>=cutoffStr).reduce((s,o)=>s+(+o.amount),0);
+    const trueOverdue = bal - recentAmt;
     if (s === 'FLAGGED' && trueOverdue <= 0) return;
     foundCount++;
     const msgText = `Hello ${c.name}, your outstanding balance with Anjani Water is ₹${bal}. Please pay at your earliest convenience.`;
@@ -51,7 +53,7 @@ export function viewCust(id) {
   window._currentCustID = id;
   const c = DB.customers.find(x => x.id === id);
   if (!c) return;
-const bal = Number(c.outstanding) || 0;
+  const bal = Number(c.outstanding) || 0;
   const msgText = `Hello ${c.name}, your outstanding balance with Anjani Water is ₹${bal}. Please pay at your earliest convenience.`;
   const msgEncoded = encodeURIComponent(msgText);
   const flagState = c.flag ? 'text-red-600 bg-red-50 border-red-200' : 'text-slate-300 bg-slate-50 border-slate-200 grayscale';
@@ -75,117 +77,4 @@ const bal = Number(c.outstanding) || 0;
     (DB.orders||[]).forEach(o => { if(String(o.clientId)===String(c.id) && o.status!=='Pending') allTxns.push({type:'order', date:o.deliveryDate, amount:o.amount, label:'Order'}); });
     (DB.payments||[]).forEach(p => { if(String(p.clientId)===String(c.id)) allTxns.push({type:'pay', date:p.date, amount:p.amount, label:'Payment'}); });
     allTxns.sort((a,b)=>b.date.localeCompare(a.date));
-    if (!allTxns.length) h.innerHTML = '<div class="p-6 text-center text-slate-300 text-xs">No transaction history</div>';
-    else allTxns.forEach(t => { h.innerHTML += `<div class="p-3 border-b flex justify-between items-center"><div><div class="font-bold text-xs">${t.label}</div><div class="text-[10px] text-slate-400">${t.date}</div></div><div class="font-mono font-bold text-sm ${t.type==='order'?'text-red-600':'text-green-600'}">${t.type==='order'?'-':'+'} ₹${t.amount}</div></div>`; });
-  }
-  if (typeof window.go === 'function') window.go('cust-detail');
-  try { feather.replace(); } catch(e){ console.warn('[feather]', e.message); }
-}
-
-export function openCustForm(isEdit) {
-  document.getElementById('modal-cust').classList.remove('hidden');
-  const currentCustID = window._currentCustID || null;
-  if (isEdit && currentCustID) {
-    const c = DB.customers.find(x => x.id === currentCustID);
-    document.getElementById('new-id').value = c.id; document.getElementById('new-name').value = c.name;
-    document.getElementById('new-mob').value = c.mobile; document.getElementById('new-map').value = c.map;
-    document.getElementById('new-rate').value = c.rate;
-  } else {
-    document.getElementById('new-id').value = ''; document.getElementById('new-name').value = '';
-    document.getElementById('new-mob').value = ''; document.getElementById('new-rate').value = '150';
-  }
-}
-
-export function saveClient(e) {
-  e.preventDefault();
-  const id = document.getElementById('new-id').value;
-  const data = { isEdit: !!id, id: id||'C-'+Date.now(), name: document.getElementById('new-name').value, mobile: document.getElementById('new-mob').value, map: document.getElementById('new-map').value, rate: document.getElementById('new-rate').value, active: true };
-  google.script.run.withSuccessHandler(() => { if (typeof window._loadData === 'function') window._loadData(); document.getElementById('modal-cust').classList.add('hidden'); if(id) viewCust(id); }).saveCustomer(data);
-}
-
-export function toggleCustActive(id) {
-  const c = DB.customers.find(x => x.id === id);
-  if (!c) return;
-  c.active = !(String(c.active) === 'true' || c.active === true);
-  viewCust(id); renderCustomers('');
-  google.script.run.withSuccessHandler(() => { if (typeof window._loadData === 'function') window._loadData(); }).saveCustomer({isEdit:true, id:c.id, name:c.name, mobile:c.mobile, map:c.map, rate:c.rate, opening:c.opening, flag:c.flag, active:c.active});
-}
-
-export function toggleCustFlag(id) {
-  const c = DB.customers.find(x => x.id === id);
-  if (!c) return;
-  c.flag = !c.flag;
-  viewCust(id);
-  google.script.run.withSuccessHandler(() => { viewCust(id); if (typeof window._loadData === 'function') window._loadData(); }).saveCustomer({isEdit:true, id:c.id, name:c.name, mobile:c.mobile, map:c.map, rate:c.rate, active:c.active, opening:c.opening, flag:c.flag});
-}
-
-export function openLocationEditor(id, oldAddr) {
-  window._currentEditingOrderId = id;
-  const modal = document.getElementById('modal-loc-edit');
-  const oldDisplay = document.getElementById('loc-edit-old');
-  if (oldDisplay) oldDisplay.innerText = oldAddr || "No address found";
-  const input = document.getElementById('loc-edit-input');
-  if (input) { input.value = ''; input.classList.remove('border-green-500','border-red-500'); }
-  document.getElementById('loc-edit-link').value = '';
-  if (modal) modal.classList.remove('hidden');
-  setTimeout(initEditMap, 500);
-}
-
-let editMapInitialized = false;
-
-export function initEditMap() {
-  if (editMapInitialized) return;
-  try {
-    const input = document.getElementById('loc-edit-input');
-    if (!input) return;
-    const vadodaraBounds = {north:22.55, south:22.10, east:73.60, west:73.00};
-    const options = {bounds:vadodaraBounds, strictBounds:true, componentRestrictions:{country:"in"}, fields:["formatted_address","url","geometry"]};
-    const editAutocomplete = new google.maps.places.Autocomplete(input, options);
-    editAutocomplete.addListener("place_changed", () => {
-      const place = editAutocomplete.getPlace();
-      const hiddenUrl = document.getElementById("loc-edit-link");
-      if (!place.url) { hiddenUrl.value = ''; input.classList.add("border-red-500"); }
-      else { hiddenUrl.value = place.url; input.classList.remove("border-red-500"); input.classList.add("border-green-500","border-2"); }
-    });
-    input.addEventListener('input', function() {
-      const val = input.value.trim();
-      const hiddenUrl = document.getElementById("loc-edit-link");
-      if (val.toLowerCase().startsWith('http')) { hiddenUrl.value = val; input.classList.remove("border-red-500"); input.classList.add("border-green-500","border-2"); }
-      else if (val==='') { input.classList.remove("border-green-500","border-red-500","border-2"); hiddenUrl.value = ''; }
-    });
-    editMapInitialized = true;
-  } catch(e) { console.log("Edit Map Error: "+e.message); }
-}
-
-export function submitLocationUpdate() {
-  const btn = document.getElementById('btn-loc-update');
-  const inputVal = document.getElementById('loc-edit-input').value.trim();
-  let hiddenLink = document.getElementById('loc-edit-link').value;
-  if (inputVal.toLowerCase().startsWith('http')) hiddenLink = inputVal;
-  if (!hiddenLink) { alert("⚠️ Please select a location or paste a valid link (starting with http)."); return; }
-  const orgText = btn.innerText;
-  btn.innerText = "UPDATING..."; btn.disabled = true;
-  const currentEditingOrderId = window._currentEditingOrderId || null;
-  google.script.run.withSuccessHandler((res) => {
-    btn.innerText = orgText; btn.disabled = false;
-    if (res==="SUCCESS") { document.getElementById('modal-loc-edit').classList.add('hidden'); const addrInput=document.getElementById('a-'+currentEditingOrderId); if(addrInput) addrInput.value=inputVal; showToast("✅ Location Updated!"); if (typeof window._loadData === 'function') window._loadData(); }
-    else alert("❌ Error: "+res);
-  }).withFailureHandler((e) => { btn.innerText = orgText; btn.disabled = false; alert("❌ Network Error: "+e.message); }).updateOrderLocation({orderId:currentEditingOrderId, newAddress:inputVal, newMapLink:hiddenLink});
-}
-
-export function openNote(id) {
-  const lead = DB.leads.find(l => l.id === id);
-  const currentNote = lead ? (lead.notes||'') : '';
-  const noteLeadIdEl = document.getElementById('note-lead-id');
-  if (noteLeadIdEl) noteLeadIdEl.value = id;
-  document.getElementById('note-input').value = currentNote;
-  document.getElementById('note-modal').classList.remove('hidden');
-  document.getElementById('note-input').focus();
-}
-
-export function saveNote() {
-  const id = document.getElementById('note-lead-id').value;
-  const text = document.getElementById('note-input').value;
-  document.getElementById('note-modal').classList.add('hidden');
-  google.script.run.withSuccessHandler(() => { const lead=DB.leads.find(l=>l.id===id); if(lead) lead.notes=text; if (typeof window._renderLeads === 'function') window._renderLeads(); }).saveLeadNote(id, text);
-}
+    if (!allTxns.length) h.innerHTML = '<div class="p-6 text
