@@ -143,3 +143,32 @@ export function go(pageId) {
 
 // Make sure it's attached to the window so HTML buttons can click it
 window.go = go;
+// ======================================================================
+// LOGIN HANDLER
+// ======================================================================
+export function handleLogin(e) {
+  if (e) e.preventDefault();
+  
+  // 1. Hide the login screen
+  const loginScreen = document.getElementById('login-screen') || document.getElementById('page-login');
+  if (loginScreen) loginScreen.classList.add('hidden');
+  
+  // 2. Show the main app layout
+  const appLayout = document.getElementById('app-layout') || document.querySelector('.flex.h-screen');
+  if (appLayout) appLayout.classList.remove('hidden');
+
+  // 3. Trigger the instant data load we just built
+  if (typeof window._loadData === 'function') {
+    window._loadData();
+  } else {
+    loadData(); // Fallback if called directly from this file
+  }
+
+  // 4. Send the user to the dashboard
+  if (typeof window.go === 'function') {
+    window.go('dashboard');
+  }
+}
+
+// Expose it to the HTML button
+window.handleLogin = handleLogin;
