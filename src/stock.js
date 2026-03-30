@@ -63,7 +63,14 @@ if (skuEl) {
   // History list (last 15)
   const slist = document.getElementById('list-stock');
   if (slist) {
-    const recent = (DB.stock || []).slice().reverse().slice(0, 15);
+    const recent = (DB.stock || []).slice().sort((a, b) => {
+      // Helper: If date is DD-MM-YYYY, flip it to YYYY-MM-DD so it sorts correctly
+      const format = (d) => (d && d.indexOf('-') === 2) ? d.split('-').reverse().join('-') : (d || '');
+      
+      // Sort descending (Newest first)
+      return format(b.date).localeCompare(format(a.date));
+    }).slice(0, 15);
+    
     if (recent.length === 0) {
       slist.innerHTML = '<div class="p-6 text-center text-slate-400 text-xs">No stock records yet</div>';
       return;
