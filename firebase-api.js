@@ -47,9 +47,14 @@ onAuthStateChanged(auth, (user) => {
     screen.style.opacity = '0';
     setTimeout(() => { screen.style.display = 'none'; }, 400);
     // Trigger data load if not already started
-    if (typeof loadData === 'function' && !window._dataLoaded) {
+    if (!window._dataLoaded) {
       window._dataLoaded = true;
-      loadData();
+      if (typeof window._loadData === 'function') {
+        window._loadData();
+      } else {
+        // app.js sets window._loadData on DOMContentLoaded; wait for it
+        setTimeout(() => { if (typeof window._loadData === 'function') window._loadData(); }, 500);
+      }
     }
   }
 });
