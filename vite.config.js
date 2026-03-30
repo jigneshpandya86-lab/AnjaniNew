@@ -6,6 +6,7 @@ export default defineConfig({
     sourcemap: true,
     rollupOptions: {
       input: 'index.html',
+      external: [/node_modules\/@capacitor\//],
       output: {
         manualChunks: {
           firebase: ['firebase/app', 'firebase/firestore'],

@@ -14,3 +14,4 @@
 import './style.css';
 import './errors.js';
 import './cache.js';
+import './app.js';
