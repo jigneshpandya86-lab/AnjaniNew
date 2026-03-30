@@ -525,24 +525,25 @@ const GAS = {
   },
 
   async getDashboardMetrics() {
-    const DB = window.DB || {};
-    const customers = DB.customers || [];
-    const orders = DB.orders || [];
-    const stock = DB.stock || [];
-    const todayStr = todayIST();
+    // Data is already live in window.DB via Firebase real-time listeners.
+    // Compute all metrics locally — no Firestore read needed.
+    const { customers=[], orders=[], payments=[], stock=[] } = window.DB || {};
+    const today      = todayIST();
+    const weekAgo    = new Date(Date.now()-7*864e5).toISOString().split('T')[0];
+    const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
 
-    const totalOutstanding = customers.reduce((s, c) => s + (Number(c.outstanding) || 0), 0);
-    const todayOrders = orders.filter(o => o.deliveryDate === todayStr);
-    const todayStock = stock.filter(s => s.date === todayStr);
-    const totalProduced = todayStock.reduce((s, r) => s + (Number(r.produced) || 0), 0);
-    const totalDelivered = todayStock.reduce((s, r) => s + (Number(r.delivered) || 0), 0);
+    const pm = from => {
+      const o = orders.filter(o => o.status!=='Pending' && o.deliveryDate>=from);
+      const p = payments.filter(p => p.date>=from);
+      return { orders:o.length, box:o.reduce((s,x)=>s+(+x.boxes||0),0), rev:o.reduce((s,x)=>s+(+x.amount||0),0), col:p.reduce((s,x)=>s+(+x.amount||0),0) };
+    };
 
     return JSON.stringify({
-      totalOutstanding,
-      todayOrderCount: todayOrders.length,
-      todayProduced: totalProduced,
-      todayDelivered: totalDelivered,
-      activeCustomers: customers.filter(c => c.active).length
+      TODAY:  { ...pm(today), prod: stock.filter(s=>s.date===today).reduce((s,r)=>s+(+r.produced||0),0) },
+      WEEK:   pm(weekAgo),
+      MONTH:  pm(monthStart),
+      STATUS: { pending:orders.filter(o=>o.status==='Pending').length, outstanding:customers.reduce((s,c)=>s+(+c.outstanding||0),0), stock:stock.reduce((s,r)=>s+(+r.produced||0)-(+r.delivered||0),0) },
+      DUES:   customers.filter(c=>String(c.active)!=='false' && +c.outstanding>0).map(c=>({id:c.id,name:c.name,bal:+c.outstanding,mobile:c.mobile})).sort((a,b)=>b.bal-a.bal),
     });
   },
 
