@@ -64,111 +64,110 @@ export function initApp() {
 
 export async function loadData() {
   const log = document.getElementById('debug-log');
-  const CACHE_KEY = 'anjani_db_v2'; // v2 = IndexedDB schema (Dexie)
+  const CACHE_KEY = 'anjani_db_v2'; 
 
-  // Ensure window.DB is the canonical global reference used by firebase-api.js
   window.DB = DB;
-  // Expose loadData on window for sync.js and other modules
   window._loadData = loadData;
 
-  // ── Step 1: Load from IndexedDB cache INSTANTLY if available ────────────────
+  // 1. SHOW LOADER: Block the screen until we know the data is ready
+  const loader = document.getElementById('loader');
+  if (loader) loader.classList.remove('hidden');
+
   const cached = window.AnjaniCache ? await window.AnjaniCache.get(CACHE_KEY) : null;
-  if (cached) {
-    DB.customers = cached.customers || [];
-    DB.orders    = cached.orders    || [];
-    DB.payments  = cached.payments  || [];
-    DB.stock     = cached.stock     || [];
-    DB.jobs      = cached.jobs      || [];
-    DB.smartMsgs = cached.smartMsgs || {};
-    DB.leads     = cached.leads     || [];
-    if (typeof window._render === 'function') window._render();
-    if (typeof window._renderLeads === 'function') window._renderLeads();
-    if (typeof window._renderDashboard === 'function') window._renderDashboard();
-    document.getElementById('loader').classList.add('hidden');
 
-    // Show "last synced" time from IndexedDB timestamp
-    const cacheTs = window.AnjaniCache ? await window.AnjaniCache.getTimestamp(CACHE_KEY) : null;
-    if (cacheTs) {
-      const mins = Math.round((Date.now() - cacheTs) / 60000);
-      const connText = document.getElementById('conn-text');
-      if (connText && !navigator.onLine) {
-        connText.innerText = 'Offline — data from ' + (mins < 2 ? 'just now' : mins + 'm ago');
-      }
-    }
-  }
-
-  // ── Step 2: If offline, stop here — IndexedDB cache is enough ───────────────
+  // 2. OFFLINE MODE: If no internet, use cache immediately
   if (!navigator.onLine) {
-    if (!cached) {
+    if (cached) {
+      DB.customers = cached.customers || []; DB.orders = cached.orders || [];
+      DB.payments = cached.payments || []; DB.stock = cached.stock || [];
+      DB.jobs = cached.jobs || []; DB.smartMsgs = cached.smartMsgs || {}; DB.leads = cached.leads || [];
+      
+      if (typeof window._render === 'function') window._render();
+      if (typeof window._renderLeads === 'function') window._renderLeads();
+      if (typeof window._renderDashboard === 'function') window._renderDashboard();
+      
+      if (loader) loader.classList.add('hidden'); // Hide loader
+      const connText = document.getElementById('conn-text');
+      if (connText) connText.innerText = 'Offline — Using cached data';
+    } else {
       if (log) { log.innerText = 'No internet & no cached data. Please connect once to load data.'; log.classList.remove('hidden'); }
     }
-    return;
+    return; 
   }
 
-  // ── Safety timeout: always hide loader after 8 s regardless of what happens ──
+  // Safety timeout (12 seconds max wait)
   setTimeout(() => {
-    const loader = document.getElementById('loader');
     if (loader && !loader.classList.contains('hidden')) {
       loader.classList.add('hidden');
-      console.warn('[loadData] Loader hidden by safety timeout');
     }
-  }, 8000);
+  }, 12000);
 
-  // ── Step 3: Online — set up real-time Firestore listeners ───────────────────
+  // 3. ONLINE MODE: Download everything from Firebase, then start
   if (typeof window.setupRealtime === 'function') {
     window.setupRealtime(async function(eventName) {
       if (eventName === '__initial_load_complete__') {
-        document.getElementById('loader').classList.add('hidden');
+        if (loader) loader.classList.add('hidden'); // Hide loader ONLY when live data arrives
         const connText = document.getElementById('conn-text');
         if (connText) connText.innerText = 'Live — ' + new Date().toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'});
       }
 
-      // Re-render the currently visible view
       if (typeof window._render === 'function') window._render();
       if (typeof window._renderLeads === 'function') window._renderLeads();
       if (typeof window._renderDashboard === 'function') window._renderDashboard();
 
-      // Persist snapshot to IndexedDB for offline use
+      // Save fresh data to local cache
       if (window.AnjaniCache) {
         await window.AnjaniCache.set(CACHE_KEY, {
-          customers: DB.customers,
-          orders:    DB.orders,
-          payments:  DB.payments,
-          stock:     DB.stock,
-          jobs:      DB.jobs,
-          smartMsgs: DB.smartMsgs,
-          leads:     DB.leads,
+          customers: DB.customers, orders: DB.orders, payments: DB.payments,
+          stock: DB.stock, jobs: DB.jobs, smartMsgs: DB.smartMsgs, leads: DB.leads,
         });
       }
     });
   } else {
-    // Fallback: setupRealtime not available
-    google.script.run.withSuccessHandler(function(res) {
+    // Firebase Bridge Adapter
+    google.script.run.withSuccessHandler(async function(res) {
       try {
         const parsed = JSON.parse(res);
         if (parsed.error) throw new Error(parsed.error);
-        DB.customers = parsed.customers || [];
-        DB.orders    = parsed.orders    || [];
-        DB.payments  = parsed.payments  || [];
-        DB.stock     = parsed.stock     || [];
-        DB.jobs      = parsed.jobs      || [];
-        DB.smartMsgs = parsed.smartMsgs || {};
+        DB.customers = parsed.customers || []; DB.orders = parsed.orders || [];
+        DB.payments = parsed.payments || []; DB.stock = parsed.stock || [];
+        DB.jobs = parsed.jobs || []; DB.smartMsgs = parsed.smartMsgs || {}; DB.leads = parsed.leads || [];
+        
         if (typeof window._render === 'function') window._render();
         if (typeof window._renderDashboard === 'function') window._renderDashboard();
-        document.getElementById('loader').classList.add('hidden');
+        if (typeof window._renderLeads === 'function') window._renderLeads();
+        
+        if (loader) loader.classList.add('hidden'); // Hide loader ONLY when live data arrives
+
+        if (window.AnjaniCache) {
+          await window.AnjaniCache.set(CACHE_KEY, {
+            customers: DB.customers, orders: DB.orders, payments: DB.payments,
+            stock: DB.stock, jobs: DB.jobs, smartMsgs: DB.smartMsgs, leads: DB.leads,
+          });
+        }
       } catch(e) {
         if (log) { log.innerText = 'DATA: ' + e.message; log.classList.remove('hidden'); }
       }
     }).withFailureHandler(function(e) {
-      console.error('[GAS] Load failed:', e.message);
-      const connText = document.getElementById('conn-text');
-      if (connText) connText.innerText = 'Sync failed — using cached data';
-      if (cached) document.getElementById('loader').classList.add('hidden');
-      else if (log) { log.innerText = 'CONN: ' + e.message; log.classList.remove('hidden'); }
+      console.error('[Firebase] Load failed:', e.message);
+      
+      // If Firebase crashes, safely fallback to cache so the app doesn't break
+      if (cached) {
+        DB.customers = cached.customers || []; DB.orders = cached.orders || [];
+        DB.payments = cached.payments || []; DB.stock = cached.stock || [];
+        DB.jobs = cached.jobs || []; DB.smartMsgs = cached.smartMsgs || {}; DB.leads = cached.leads || [];
+        
+        if (typeof window._render === 'function') window._render();
+        if (typeof window._renderDashboard === 'function') window._renderDashboard();
+        if (typeof window._renderLeads === 'function') window._renderLeads();
+        
+        if (loader) loader.classList.add('hidden');
+        const connText = document.getElementById('conn-text');
+        if (connText) connText.innerText = 'Sync failed — using cached data';
+      }
     }).getInitialData();
   }
 }
-
 export function go(p) {
   localStorage.setItem('ANJANI_LAST_VIEW', p);
   ['dashboard','orders','customers','stock','payments','leads','cust-detail','smart'].forEach(function(x) {
