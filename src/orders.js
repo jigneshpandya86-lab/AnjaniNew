@@ -31,15 +31,28 @@ export function render() {
   const searchTerm = (searchEl ? searchEl.value : '').toLowerCase();
   if (searchTerm.length > 0 && searchTerm.length < 5 && isNaN(searchTerm)) return;
 
+// Use timezone-safe dates for India (IST)
+  const getLocalISO = (d) => new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+  const todayStrISO = getLocalISO(new Date());
+  const fiveDaysAgoStr = getLocalISO(new Date(Date.now() - 5 * 86400000)); // 5 days in milliseconds
+  const showTodayOnly = window._showTodayOnly || false;
+
   let rawList = (DB.orders || []).filter(function(o) {
+    // 1. Always allow search matches to pass through
     const isSearchMatch = searchTerm && (String(o.id).toLowerCase().includes(searchTerm) || (o.customer||'').toLowerCase().includes(searchTerm));
     if (searchTerm.length >= 5 || (!isNaN(searchTerm) && searchTerm.length > 0)) return isSearchMatch;
-    const isToday = o.deliveryDate === new Date().toISOString().split('T')[0];
-    const isRelevant = o.status === 'Pending' || (o.status === 'Delivered' && isToday);
-    const showTodayOnly = window._showTodayOnly || false;
-    return isRelevant && (!showTodayOnly || isToday);
+    
+    const isToday = o.deliveryDate === todayStrISO;
+    
+    if (showTodayOnly) {
+      // 2. "Today" Tab: Show only today's pending and today's delivered orders
+      return (o.status === 'Pending' || o.status === 'Delivered') && isToday;
+    } else {
+      // 3. "All" Tab: Show ALL pending orders + Delivered orders from the last 5 days
+      const isRecent = (o.deliveryDate >= fiveDaysAgoStr);
+      return o.status === 'Pending' || (o.status === 'Delivered' && isRecent);
+    }
   });
-
   const sortMode = window._sortMode || 'TASK';
   let pending;
   if (sortMode === 'TASK') {
