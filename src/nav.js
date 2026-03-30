@@ -83,6 +83,7 @@ export async function loadData() {
     DB.leads     = cached.leads     || [];
     if (typeof window._render === 'function') window._render();
     if (typeof window._renderLeads === 'function') window._renderLeads();
+    if (typeof window._renderDashboard === 'function') window._renderDashboard();
     document.getElementById('loader').classList.add('hidden');
 
     // Show "last synced" time from IndexedDB timestamp
@@ -125,6 +126,7 @@ export async function loadData() {
       // Re-render the currently visible view
       if (typeof window._render === 'function') window._render();
       if (typeof window._renderLeads === 'function') window._renderLeads();
+      if (typeof window._renderDashboard === 'function') window._renderDashboard();
 
       // Persist snapshot to IndexedDB for offline use
       if (window.AnjaniCache) {
@@ -152,6 +154,7 @@ export async function loadData() {
         DB.jobs      = parsed.jobs      || [];
         DB.smartMsgs = parsed.smartMsgs || {};
         if (typeof window._render === 'function') window._render();
+        if (typeof window._renderDashboard === 'function') window._renderDashboard();
         document.getElementById('loader').classList.add('hidden');
       } catch(e) {
         if (log) { log.innerText = 'DATA: ' + e.message; log.classList.remove('hidden'); }
