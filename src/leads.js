@@ -8,12 +8,11 @@ import { enqueueAction, showOfflineToast } from './sync.js';
 export function renderLeads() {
   const list = document.getElementById('list-leads');
   if (!list) return;
-  list.innerHTML = '';
   
   const todayStr = new Date().toISOString().split('T')[0];
   const sevenDaysAgo = new Date(Date.now() - (CONFIG?.RECENT_ORDERS_DAYS || 7) * 86400000).toISOString().split('T')[0];
   
-  // 1. SMART FILTER: Look for lastContact first, then createdDate, default to today if missing so it doesn't hide
+  // 1. SMART FILTER
   const leads = (DB.leads || []).filter(l => {
     const d = l.lastContact || l.createdDate || todayStr;
     return d >= sevenDaysAgo;
@@ -30,6 +29,10 @@ export function renderLeads() {
   const leadFilter = window._leadFilter || 'ALL';
   
   let foundCount = 0;
+  
+  // 🔥 THE FIX: Create an empty string to hold our HTML behind the scenes
+  let htmlBuffer = ''; 
+
   leads.forEach(l => {
     if (leadFilter !== 'ALL') {
       if (leadFilter === 'New' && l.status !== 'New') return;
@@ -37,12 +40,12 @@ export function renderLeads() {
       if (leadFilter === 'Waiting' && l.status !== 'Waiting' && l.status !== 'Con') return;
     }
     foundCount++;
+    
     let stripClass = 'status-strip-New';
     if (l.status === 'Sam') stripClass = 'status-strip-Sample';
     else if (l.status === 'Con') stripClass = 'status-strip-Connected';
     else if (l.status === 'Waiting') stripClass = 'status-strip-Follow-up';
     
-    // 2. SMART DATA EXTRACTION: Extract mobile from raw text if the backend didn't save a dedicated 'mobile' field
     const mobileMatch = (l.raw || '').match(/\d{10}/);
     const displayMobile = l.mobile || (mobileMatch ? mobileMatch[0] : l.raw) || 'No Number';
     const displayDate = l.lastContact || l.createdDate || 'No Date';
@@ -68,17 +71,24 @@ export function renderLeads() {
     }
     html += `<button onclick="runLeadAction('DELETE','${l.id}')" class="w-8 h-8 rounded-lg bg-red-50 text-red-600 border border-red-100 flex items-center justify-center hover:bg-red-100 active:scale-95 transition"><i data-feather="x" class="w-4 h-4"></i></button>`;
     html += '</div></div>';
-    list.innerHTML += html;
+    
+    // 🔥 THE FIX: Add the string to our buffer instead of updating the screen
+    htmlBuffer += html; 
   });
   
-  if (!foundCount) list.innerHTML = '<div class="text-center text-slate-300 text-xs py-10">No Leads Found</div>';
+  // 🔥 THE FIX: Update the DOM exactly ONCE at the very end
+  if (!foundCount) {
+    list.innerHTML = '<div class="text-center text-slate-300 text-xs py-10">No Leads Found</div>';
+  } else {
+    list.innerHTML = htmlBuffer;
+  }
+
   ['ALL','New','Sam','Waiting'].forEach(f => {
     const btn = document.getElementById('lf-'+f);
     if (btn) btn.className = leadFilter===f ? "px-3 py-1.5 rounded-md text-xs font-bold transition bg-white text-blue-600 shadow-sm border border-slate-200" : "px-3 py-1.5 rounded-md text-xs font-medium transition text-slate-500 hover:bg-slate-200";
   });
   try { feather.replace(); } catch(e){ console.warn('[feather]', e.message); }
 }
-
 export function addLead() {
   const input = document.getElementById('lead-input');
   const raw = input.value;
