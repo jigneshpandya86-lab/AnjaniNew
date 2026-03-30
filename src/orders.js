@@ -41,7 +41,7 @@ export function placeOrder(e) {
   if (!navigator.onLine) {
     data._offline = true;
     DB.orders.push(data);
-    render();
+    if (typeof render === 'function') render();
     e.target.reset();
     document.getElementById('ord-date').value = new Date().toISOString().split('T')[0];
     enqueueAction('saveOrder', data);
@@ -66,14 +66,48 @@ export function placeOrder(e) {
       btn.innerText = "CONFIRM ORDER";
     })
     .withFailureHandler((err) => {
-      console.error("Firebase Save Error:", err); // Added for debugging
+      console.error("Firebase Save Error:", err); 
       btn.disabled = false;
       btn.innerText = "CONFIRM ORDER";
       showToast('❌ Save failed — saved offline instead', true);
       data._offline = true;
       DB.orders.push(data);
-      render();
+      if (typeof render === 'function') render();
       enqueueAction('saveOrder', data);
     })
     .saveOrder(data);
+}
+
+export function doDel(id) {
+  const qty     = document.getElementById('q-' + id).value;
+  const date    = document.getElementById('d-' + id).value;
+  const timeEl  = document.getElementById('t-' + id);
+  const time    = timeEl ? timeEl.value : '09:00';
+  const address = document.getElementById('a-' + id).value;
+  const btn     = document.querySelector(`button[onclick="doDel('${id}')"]`);
+
+  // ── OFFLINE path ──────────────────────────────────────────
+  if (!navigator.onLine) {
+    const o = DB.orders.find(x => String(x.id) === String(id));
+    if (o) { o.status = 'Delivered'; o.boxes = qty; o.deliveryDate = date; o._offline = true; }
+    if (typeof render === 'function') render();
+    enqueueAction('updateOrderStatus', { id, status: 'Delivered', qty, date, time, address });
+    showOfflineToast('✅ Order #' + id + ' marked delivered offline');
+    return;
+  }
+
+  // ── ONLINE path ───────────────────────────────────────────
+  if (btn) btn.innerText = "SAVING...";
+  google.script.run
+    .withSuccessHandler(() => { if (typeof window._loadData === 'function') window._loadData(); })
+    .withFailureHandler((err) => {
+      if (btn) btn.innerText = "DELIVER →";
+      // Fallback to offline
+      const o = DB.orders.find(x => String(x.id) === String(id));
+      if (o) { o.status = 'Delivered'; o._offline = true; }
+      if (typeof render === 'function') render();
+      enqueueAction('updateOrderStatus', { id, status: 'Delivered', qty, date, time, address });
+      showOfflineToast('✅ Saved offline — will sync on reconnect');
+    })
+    .updateOrderStatus(id, "Delivered", qty, date, time, address);
 }
