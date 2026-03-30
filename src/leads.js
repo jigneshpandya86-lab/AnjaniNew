@@ -9,12 +9,17 @@ export function renderLeads() {
   const list = document.getElementById('list-leads');
   if (!list) return;
   list.innerHTML = '';
-  // Safely fallback to 7 days if CONFIG isn't fully loaded
+  
+  const todayStr = new Date().toISOString().split('T')[0];
   const sevenDaysAgo = new Date(Date.now() - (CONFIG?.RECENT_ORDERS_DAYS || 7) * 86400000).toISOString().split('T')[0];
   
-  const leads = (DB.leads || []).filter(l => (l.lastContact || '') >= sevenDaysAgo).sort((a,b) => { 
-    const dA = a.lastContact || ''; 
-    const dB = b.lastContact || ''; 
+  // 1. SMART FILTER: Look for lastContact first, then createdDate, default to today if missing so it doesn't hide
+  const leads = (DB.leads || []).filter(l => {
+    const d = l.lastContact || l.createdDate || todayStr;
+    return d >= sevenDaysAgo;
+  }).sort((a,b) => { 
+    const dA = a.lastContact || a.createdDate || ''; 
+    const dB = b.lastContact || b.createdDate || ''; 
     return dB !== dA ? dB.localeCompare(dA) : String(b.id).localeCompare(String(a.id)); 
   });
   
@@ -37,18 +42,23 @@ export function renderLeads() {
     else if (l.status === 'Con') stripClass = 'status-strip-Connected';
     else if (l.status === 'Waiting') stripClass = 'status-strip-Follow-up';
     
+    // 2. SMART DATA EXTRACTION: Extract mobile from raw text if the backend didn't save a dedicated 'mobile' field
+    const mobileMatch = (l.raw || '').match(/\d{10}/);
+    const displayMobile = l.mobile || (mobileMatch ? mobileMatch[0] : l.raw) || 'No Number';
+    const displayDate = l.lastContact || l.createdDate || 'No Date';
+
     const isWaiting = (l.status === 'Waiting' || l.status === 'Con');
     const msgFinal = "🙏 *Jay Shree Krishna!*\n\n*Anjani Water* tরফthI contact kari raha chhe! 💧\n\nAame provide kariye chhe *200mL Packaged Drinking Water Bottles* — BIS Certified, ISI Marked, 100% Shudh!\n\n━━━━━━━━━━━━━━\n🏆 *Aapna Business Maate Perfect:*\n🎪 Events & Functions\n🏢 Corporate Offices\n💒 Weddings & Receptions\n🍽️ Caterers & Banquets\n🏬 Showrooms & Retail\n━━━━━━━━━━━━━━\n\n✅ *Kem Anjani Water?*\n💧 ISI / BIS Certified Quality\n📦 Bulk Orders — Best Price Guaranteed\n🚚 On-Time Delivery, Every Time\n🤝 Trusted by 50+ Businesses Locally\n\n📲 *Aaj j \"YES\" reply karo* — FREE Sample Bottle moksho!\n\n_Aapna guests ne pilaavo sabse shudh pani_ 😊\n\n– *Anjani Water* 💙\n📞 Reply for Bulk Rates & Orders";
-    const nileshMsg = `Nilesh, Call, Meet and Give Samples to this new lead: ${l.mobile}`;
+    const nileshMsg = `Nilesh, Call, Meet and Give Samples to this new lead: ${displayMobile}`;
     const hasNote = l.notes && l.notes.length > 0;
     const noteBtn = `<button onclick="openNote('${l.id}')" class="w-8 h-8 rounded-lg border flex items-center justify-center transition active:scale-95 ${hasNote?'bg-amber-100 text-amber-700 border-amber-200':'bg-slate-50 text-slate-400 border-slate-200 hover:bg-blue-50 hover:text-blue-500'}"><i data-feather="${hasNote?'file-text':'edit-2'}" class="w-4 h-4"></i></button>`;
     
     let html = `<div class="bg-white p-3 rounded-lg shadow-sm border border-slate-200 relative overflow-hidden ${stripClass} flex flex-wrap items-center justify-between gap-3">`;
-    html += `<div class="flex items-center gap-3"><div><div class="font-bold text-slate-800 text-sm flex items-center gap-2">${l.mobile || 'No Number'}<span class="text-[9px] font-normal text-slate-400 bg-slate-50 border border-slate-100 px-1.5 py-0.5 rounded">${l.status}</span></div><div class="text-[9px] text-slate-400 font-mono">${l.lastContact||'No Date'}</div></div></div>`;
+    html += `<div class="flex items-center gap-3"><div><div class="font-bold text-slate-800 text-sm flex items-center gap-2">${displayMobile}<span class="text-[9px] font-normal text-slate-400 bg-slate-50 border border-slate-100 px-1.5 py-0.5 rounded">${l.status}</span></div><div class="text-[9px] text-slate-400 font-mono">${displayDate}</div></div></div>`;
     html += '<div class="flex items-center gap-2">' + noteBtn;
     
     if (!isWaiting) {
-      html += `<a href="https://wa.me/91${l.mobile}?text=${encodeURIComponent(msgFinal)}" target="_blank" class="w-8 h-8 rounded-lg bg-green-50 text-green-600 border border-green-100 flex items-center justify-center hover:bg-green-100 active:scale-95 transition"><i data-feather="message-circle" class="w-4 h-4"></i></a>`;
+      html += `<a href="https://wa.me/91${displayMobile}?text=${encodeURIComponent(msgFinal)}" target="_blank" class="w-8 h-8 rounded-lg bg-green-50 text-green-600 border border-green-100 flex items-center justify-center hover:bg-green-100 active:scale-95 transition"><i data-feather="message-circle" class="w-4 h-4"></i></a>`;
       html += `<button onclick="runLeadAction('STATUS:Con','${l.id}')" class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center hover:bg-blue-100 active:scale-95 transition"><i data-feather="phone-call" class="w-4 h-4"></i></button>`;
       html += `<a onclick="runLeadAction('STATUS:Sam','${l.id}')" href="https://wa.me/91${STAFF_NUM}?text=${encodeURIComponent(nileshMsg)}" target="_blank" class="w-8 h-8 rounded-lg bg-purple-600 text-white shadow-sm flex items-center justify-center hover:bg-purple-700 active:scale-95 transition"><i data-feather="box" class="w-4 h-4"></i></a>`;
       html += `<button onclick="runLeadAction('CONVERT','${l.id}')" class="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 border border-slate-200 flex items-center justify-center hover:bg-slate-200 active:scale-95 transition"><i data-feather="user-check" class="w-4 h-4"></i></button>`;
@@ -77,14 +87,13 @@ export function addLead() {
   const btn = document.querySelector('button[onclick="addLead()"]');
   if (btn) { btn.disabled = true; btn.innerText = "SAVING..."; }
 
-  // 1. Create a local lead object so it renders instantly (and prevents the 7-day hiding bug)
   const mobileMatch = raw.match(/\d{10}/);
-  const tempMobile = mobileMatch ? mobileMatch[0] : "Pending...";
+  const tempMobile = mobileMatch ? mobileMatch[0] : raw;
   const newLead = {
     id: 'LD-' + Date.now(),
     mobile: tempMobile,
     status: 'New',
-    lastContact: new Date().toISOString().split('T')[0], 
+    createdDate: new Date().toISOString().split('T')[0], // 3. Set to createdDate so it matches Firebase
     raw: raw
   };
 
@@ -112,7 +121,6 @@ export function addLead() {
       console.error("Lead Save Error:", err);
       showToast('❌ Save failed — saved offline instead', true);
       
-      // Fallback
       newLead._offline = true;
       DB.leads.push(newLead);
       renderLeads();
@@ -153,7 +161,6 @@ export function runLeadAction(action, id) {
     })
     .withFailureHandler((err) => {
       console.error("Action error", err);
-      // Fallback
       if (action === 'DELETE') DB.leads = DB.leads.filter(l => String(l.id) !== String(id));
       else {
         const l = DB.leads.find(x => String(x.id) === String(id));
