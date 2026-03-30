@@ -1,6 +1,5 @@
 name: Build Android APK
 
-# This allows you to manually click a button to build the app
 on:
   workflow_dispatch: 
 
@@ -36,12 +35,16 @@ jobs:
           npm install -D @capacitor/cli
 
       - name: Initialize Capacitor
-        # This tells Capacitor that your app is called "Anjani Water" 
-        # and points it to the "dist" folder Vite created
         run: npx cap init "Anjani Water" "com.anjani.water" --web-dir dist
 
       - name: Generate Android Project
         run: npx cap add android
+
+      - name: Fix Kotlin Duplicate Classes
+        working-directory: ./android/app
+        run: |
+          echo "" >> build.gradle
+          echo "configurations.all { resolutionStrategy { exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jdk8'; exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jdk7' } }" >> build.gradle
 
       - name: Build Android APK
         working-directory: ./android
