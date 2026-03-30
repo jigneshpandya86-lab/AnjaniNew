@@ -1,6 +1,6 @@
 name: Build Android APK
 
-# This allows you to manually trigger the build from the Actions tab
+# This allows you to manually click a button to build the app
 on:
   workflow_dispatch: 
 
@@ -18,22 +18,32 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Setup Java JDK
+      - name: Setup Java JDK for Android
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Install NPM Dependencies
+      - name: Install Web Dependencies
         run: npm install
 
       - name: Build Web App (Vite)
         run: npm run build
 
-      - name: Sync Capacitor Android
-        run: npx cap sync android
+      - name: Install Capacitor (Cloud Terminal)
+        run: |
+          npm install @capacitor/core @capacitor/android
+          npm install -D @capacitor/cli
 
-      - name: Build Android APK (Debug)
+      - name: Initialize Capacitor
+        # This tells Capacitor that your app is called "Anjani Water" 
+        # and points it to the "dist" folder Vite created
+        run: npx cap init "Anjani Water" "com.anjani.water" --web-dir dist
+
+      - name: Generate Android Project
+        run: npx cap add android
+
+      - name: Build Android APK
         working-directory: ./android
         run: |
           chmod +x ./gradlew
@@ -42,5 +52,5 @@ jobs:
       - name: Upload APK to GitHub
         uses: actions/upload-artifact@v4
         with:
-          name: AnjaniWater-App
+          name: AnjaniWater-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
