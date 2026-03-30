@@ -118,3 +118,28 @@ export async function loadData() {
     }).getInitialData();
   }
 }
+// ======================================================================
+// NAVIGATION ROUTER
+// ======================================================================
+export function go(pageId) {
+  // Hide all screens
+  document.querySelectorAll('.page-section, .page, [id^="page-"]').forEach(el => {
+    el.classList.add('hidden');
+  });
+  
+  // Show target screen
+  const target = document.getElementById(pageId) || document.getElementById('page-' + pageId);
+  if (target) target.classList.remove('hidden');
+
+  // Close mobile sidebar if open
+  const sidebar = document.getElementById('sidebar');
+  if (sidebar && window.innerWidth < 768) {
+    sidebar.classList.add('-translate-x-full');
+  }
+
+  // Expose to window for quick links
+  window._currentPage = pageId;
+}
+
+// Make sure it's attached to the window so HTML buttons can click it
+window.go = go;
