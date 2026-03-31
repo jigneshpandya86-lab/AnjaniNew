@@ -129,12 +129,16 @@ window.go = go;
 // ======================================================================
 // LOGIN HANDLER (PIN -> FIREBASE BRIDGE)
 // ======================================================================
+// ======================================================================
+// LOGIN HANDLER (PIN -> FIREBASE BRIDGE)
+// ======================================================================
 export async function handleLogin(e) {
   if (e) e.preventDefault();
   
   const pinInput = document.getElementById('pin-input');
   const pin = pinInput ? pinInput.value : '';
   const errorMsg = document.getElementById('pin-error');
+  const loader = document.getElementById('loader');
 
   // Change "9999" to whatever secret PIN you want to use!
   if (pin === "9999") {
@@ -146,35 +150,39 @@ export async function handleLogin(e) {
     }
 
     try {
-      // 1. Secretly log into Firebase in the background
+      // 1. Immediately show the Data Gate Splash Screen over the login box
+      if (loader) loader.classList.remove('hidden');
+
+      // 2. Secretly log into Firebase
       const auth = getAuth();
       await signInWithEmailAndPassword(auth, "admin@anjaniwater.in", "Anjani@2026");
-      
-      // Save session
       localStorage.setItem('anjani_session', 'active');
 
-      // 2. Hide the login screen
+      // 3. Give Firebase 0.5 seconds to register the new login token
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // 4. NOW fetch the data AND wait for it to finish!
+      if (typeof window._loadData === 'function') {
+        await window._loadData();
+      } else if (typeof loadData === 'function') {
+        await loadData(); 
+      }
+
+      // 5. Data is loaded! Hide Login and Loader screens
       const loginScreen = document.getElementById('login-screen') || document.getElementById('page-login');
       if (loginScreen) loginScreen.classList.add('hidden');
+      if (loader) loader.classList.add('hidden');
       
-      // 3. Show the main app layout
       const appLayout = document.getElementById('app-layout') || document.querySelector('.flex.h-screen');
       if (appLayout) appLayout.classList.remove('hidden');
 
-      // 4. Send the user to the dashboard
+      // 6. Send the user to the fully populated dashboard
       if (typeof window.go === 'function') {
         window.go('dashboard');
       }
 
-      // 5. Trigger the instant data load 
-      if (typeof window._loadData === 'function') {
-        await window._loadData();
-      } else if (typeof loadData === 'function') {
-        await loadData(); // Fallback if called directly from this file
-      }
-
     } catch (error) {
-      // If Firebase rejects the background login
+      if (loader) loader.classList.add('hidden');
       if (errorMsg) {
         errorMsg.innerText = "⛔ DATABASE ERROR: " + error.message;
         errorMsg.classList.remove('text-blue-500');
@@ -182,7 +190,7 @@ export async function handleLogin(e) {
       }
     }
   } else {
-    // If they typed the wrong PIN
+    // Wrong PIN
     if (errorMsg) {
       errorMsg.innerText = "⛔ INCORRECT PIN";
       errorMsg.classList.remove('text-blue-500');
@@ -192,10 +200,7 @@ export async function handleLogin(e) {
     }
   }
 }
-
-// Expose it to the HTML button
 window.handleLogin = handleLogin;
-
 // ======================================================================
 // APP INITIALIZATION
 // ======================================================================
