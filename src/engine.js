@@ -1,5 +1,5 @@
 import { DB } from './state.js';
-import { enqueueAction } from './sync.js'; // Your existing queue
+import { enqueueAction } from './sync.js';
 
 // ── THE MASTER ENGINE ─────────────────────────────────────────
 export async function dispatch(actionType, payload) {
@@ -15,24 +15,53 @@ export async function dispatch(actionType, payload) {
     });
   }
 
-  // STEP 3: INSTANT UI RENDER
+  // STEP 3: INSTANT UI RENDER (Triggers all visible screens to refresh)
   if (typeof window._render === 'function') window._render();
   if (typeof window._renderDashboard === 'function') window._renderDashboard();
+  if (typeof window._renderRecentPayments === 'function') window._renderRecentPayments();
+  if (typeof window._renderCustomers === 'function') window._renderCustomers('');
+  if (typeof window._renderStockPage === 'function') window._renderStockPage();
+  if (typeof window._renderLeads === 'function') window._renderLeads();
   
   // STEP 4: BACKGROUND FIREBASE SYNC
   try {
     if (!navigator.onLine) throw new Error("Offline");
     if (!window.FirebaseAPI) throw new Error("Firebase not ready");
 
-    // Route to the correct Firebase function based on the action
+    // Route to the correct Firebase API based on the action
     switch (actionType) {
-      case 'SAVE_ORDER': 
-        await window.FirebaseAPI.saveOrder(payload); 
-        break;
+      // ORDERS
+      case 'SAVE_ORDER':   
+        await window.FirebaseAPI.saveOrder(payload); break;
       case 'UPDATE_ORDER': 
-        await window.FirebaseAPI.updateOrderStatus(payload.id, payload.status, payload.qty, payload.date, payload.time, payload.address); 
-        break;
-      // Add 'SAVE_CLIENT', 'SAVE_PAYMENT', etc. here later!
+        await window.FirebaseAPI.updateOrderStatus(payload.id, payload.status, payload.qty, payload.date, payload.time, payload.address); break;
+      
+      // PAYMENTS
+      case 'SAVE_PAYMENT': 
+        await window.FirebaseAPI.savePayment(payload); break;
+      
+      // CUSTOMERS
+      case 'SAVE_CLIENT':  
+        await window.FirebaseAPI.saveClient(payload); break;
+      
+      // STOCK
+      case 'SAVE_STOCK':   
+        await window.FirebaseAPI.saveStock(payload); break;
+      
+      // LEADS
+      case 'SAVE_LEAD':    
+        await window.FirebaseAPI.saveLead(payload); break;
+      case 'UPDATE_LEAD':  
+        await window.FirebaseAPI.updateLead(payload.id, payload.updates); break;
+      
+      // JOBS / SMART ACTIONS
+      case 'SAVE_JOB':     
+        await window.FirebaseAPI.saveJob(payload); break;
+      case 'UPDATE_JOB':   
+        await window.FirebaseAPI.updateJob(payload.id, payload.updates); break;
+
+      default:
+        console.warn(`[Engine] Unhandled action type: ${actionType}`);
     }
     
     console.log(`✅ [Engine] ${actionType} synced securely to cloud.`);
@@ -40,31 +69,81 @@ export async function dispatch(actionType, payload) {
   } catch (err) {
     // If offline or Firebase fails, quietly push it to the background queue
     console.warn(`⏳ [Engine] ${actionType} queued for background sync. Reason:`, err.message);
-    enqueueAction(actionType, payload); // Your sync.js will handle this when the internet returns
+    enqueueAction(actionType, payload);
   }
 }
 
 // ── LOCAL DATA ROUTER ─────────────────────────────────────────
-// This tells the engine exactly how to modify your local arrays
+// This tells the engine exactly how to modify your local arrays instantly
 function applyToLocalDB(actionType, payload) {
+  
+  // Helper to quickly flag items as offline if there's no internet
+  const isOffline = !navigator.onLine;
+
+  // Helper to quickly update existing records by ID
+  const updateRecord = (table, id, mappedUpdates) => {
+    const idx = DB[table].findIndex(x => String(x.id) === String(id));
+    if (idx > -1) {
+      DB[table][idx] = { ...DB[table][idx], ...mappedUpdates, _offline: isOffline };
+    }
+  };
+
   switch (actionType) {
     
+    // -- ORDERS --
     case 'SAVE_ORDER':
-      // Give it an offline flag just in case
-      payload._offline = !navigator.onLine;
+      payload._offline = isOffline;
       DB.orders.push(payload);
       break;
-
     case 'UPDATE_ORDER':
-      const order = DB.orders.find(o => String(o.id) === String(payload.id));
-      if (order) {
-        if (payload.status !== null) order.status = payload.status;
-        if (payload.qty !== null) order.boxes = payload.qty;
-        if (payload.date !== null) order.deliveryDate = payload.date;
-        if (payload.time !== null) order.time = payload.time;
-        if (payload.address !== null) order.address = payload.address;
-        order._offline = !navigator.onLine;
+      const ordUpdates = {};
+      if (payload.status !== null) ordUpdates.status = payload.status;
+      if (payload.qty !== null) ordUpdates.boxes = payload.qty;
+      if (payload.date !== null) ordUpdates.deliveryDate = payload.date;
+      if (payload.time !== null) ordUpdates.time = payload.time;
+      if (payload.address !== null) ordUpdates.address = payload.address;
+      updateRecord('orders', payload.id, ordUpdates);
+      break;
+
+    // -- PAYMENTS --
+    case 'SAVE_PAYMENT':
+      payload._offline = isOffline;
+      DB.payments.push(payload);
+      break;
+
+    // -- CUSTOMERS --
+    case 'SAVE_CLIENT':
+      payload._offline = isOffline;
+      const existingCustIdx = DB.customers.findIndex(x => String(x.id) === String(payload.id));
+      if (existingCustIdx > -1) {
+        DB.customers[existingCustIdx] = payload; // Update existing
+      } else {
+        DB.customers.push(payload); // Create new
       }
+      break;
+
+    // -- STOCK --
+    case 'SAVE_STOCK':
+      payload._offline = isOffline;
+      DB.stock.push(payload);
+      break;
+
+    // -- LEADS --
+    case 'SAVE_LEAD':
+      payload._offline = isOffline;
+      DB.leads.push(payload);
+      break;
+    case 'UPDATE_LEAD':
+      updateRecord('leads', payload.id, payload.updates);
+      break;
+
+    // -- JOBS --
+    case 'SAVE_JOB':
+      payload._offline = isOffline;
+      DB.jobs.push(payload);
+      break;
+    case 'UPDATE_JOB':
+      updateRecord('jobs', payload.id, payload.updates);
       break;
   }
 }
