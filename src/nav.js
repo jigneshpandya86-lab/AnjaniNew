@@ -118,18 +118,29 @@ export async function loadData() {
     }).getInitialData();
   }
 }
+
 // ======================================================================
-// NAVIGATION ROUTER
+// NAVIGATION ROUTER (FIXED FOR HTML "view-" IDs)
 // ======================================================================
 export function go(pageId) {
-  // Hide all screens
-  document.querySelectorAll('.page-section, .page, [id^="page-"]').forEach(el => {
+  // 1. Hide all screens (looks for IDs starting with "view-")
+  document.querySelectorAll('[id^="view-"]').forEach(el => {
     el.classList.add('hidden');
   });
   
-  // Show target screen
-  const target = document.getElementById(pageId) || document.getElementById('page-' + pageId);
+  // 2. Show the target screen
+  const target = document.getElementById('view-' + pageId);
   if (target) target.classList.remove('hidden');
+
+  // 3. Highlight the active Mobile button
+  document.querySelectorAll('.mob-item').forEach(el => el.classList.remove('active'));
+  const mobBtn = document.getElementById('m-btn-' + pageId);
+  if (mobBtn) mobBtn.classList.add('active');
+
+  // 4. Highlight the active Desktop button
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  const deskBtn = document.getElementById('d-btn-' + pageId);
+  if (deskBtn) deskBtn.classList.add('active');
 
   // Close mobile sidebar if open
   const sidebar = document.getElementById('sidebar');
@@ -143,6 +154,7 @@ export function go(pageId) {
 
 // Make sure it's attached to the window so HTML buttons can click it
 window.go = go;
+
 // ======================================================================
 // LOGIN HANDLER
 // ======================================================================
@@ -172,6 +184,7 @@ export function handleLogin(e) {
 
 // Expose it to the HTML button
 window.handleLogin = handleLogin;
+
 // ======================================================================
 // APP INITIALIZATION
 // ======================================================================
