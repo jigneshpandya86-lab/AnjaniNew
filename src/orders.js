@@ -3,17 +3,7 @@
 // ============================================================
 import { DB, STAFF_NUM, CONFIG } from './state.js';
 import { esc, showToast } from './utils.js';
-import { enqueueAction, showOfflineToast } from './sync.js';
-
-// 🔥 THE FIX: Helper to lock changes into local storage so background reloads don't wipe the screen!
-function updateLocalCache() {
-  if (window.AnjaniCache) {
-    window.AnjaniCache.set('anjani_db_v2', {
-      customers: DB.customers, orders: DB.orders, payments: DB.payments,
-      stock: DB.stock, jobs: DB.jobs, smartMsgs: DB.smartMsgs, leads: DB.leads
-    });
-  }
-}
+import { dispatch } from './engine.js'; // 🔥 Powered by the new Central Sync Engine!
 
 export function render() {
   // Dropdowns
@@ -247,13 +237,11 @@ export function toggleSort() {
   feather.replace(); render();
 }
 
-export async function placeOrder(e) {
+// 🔥 Engine-Powered Save
+export function placeOrder(e) {
   e.preventDefault();
-  const btn = document.getElementById('btn-save');
-  if (btn.disabled) return;
-
-  const cid = document.getElementById('ord-cust').value;
   
+  const cid = document.getElementById('ord-cust').value;
   if (!cid || cid === "NEW") {
     alert("⚠️ Please select a valid customer first.");
     document.getElementById('ord-cust').focus();
@@ -264,7 +252,8 @@ export async function placeOrder(e) {
   const safeQty = Number(document.getElementById('ord-qty').value) || 0;
   const safeRate = Number(document.getElementById('ord-rate').value) || 0;
   
-  const data = {
+  // 1. Package the payload
+  const newOrder = {
     id:           'ORD-' + Date.now(),
     clientId:     cid,
     customer:     c.name || 'Unknown',
@@ -282,131 +271,38 @@ export async function placeOrder(e) {
     status:       'Pending'
   };
 
-  if (!navigator.onLine) {
-    data._offline = true;
-    DB.orders.push(data);
-    updateLocalCache();
-    if (typeof render === 'function') render();
-    e.target.reset();
-    document.getElementById('ord-date').value = new Date().toISOString().split('T')[0];
-    enqueueAction('saveOrder', data);
-    showOfflineToast('📦 Order saved offline for ' + (c.name || 'customer'));
-    return;
-  }
+  // 2. Clear the form for the next order instantly
+  e.target.reset();
+  document.getElementById('ord-date').value = new Date().toISOString().split('T')[0];
+  window._highlightID = newOrder.id;
 
-  btn.disabled = true;
-  btn.innerText = "SAVING...";
-
-  try {
-    // 🔥 1. INSTANT UI UPDATE
-    DB.orders.push(data);
-    window._highlightID = data.id;
-    updateLocalCache(); // Secure it in the local cache immediately!
-    if (typeof render === 'function') render();
-    
-    e.target.reset();
-    document.getElementById('ord-date').value = new Date().toISOString().split('T')[0];
-
-    // 🔥 2. Quietly push to Firebase in the background
-    if (window.FirebaseAPI) {
-      await window.FirebaseAPI.saveOrder(data);
-    }
-    
-    btn.disabled = false;
-    btn.innerText = "CONFIRM ORDER";
-  } catch (err) {
-    console.error("Firebase Save Error:", err); 
-    btn.disabled = false;
-    btn.innerText = "CONFIRM ORDER";
-    showToast('❌ Save failed — saved offline instead', true);
-    data._offline = true;
-    updateLocalCache();
-    enqueueAction('saveOrder', data);
-  }
+  // 3. Hand it to the Central Engine and walk away!
+  dispatch('SAVE_ORDER', newOrder);
 }
 
-export async function saveOrderEdit(id) {
+// 🔥 Engine-Powered Edit
+export function saveOrderEdit(id) {
   const qty     = document.getElementById('q-'+id).value;
   const date    = document.getElementById('d-'+id).value;
   const timeEl  = document.getElementById('t-'+id);
   const time    = timeEl ? timeEl.value : '09:00';
   const address = document.getElementById('a-'+id).value;
-  const btn     = document.querySelector(`button[onclick="saveOrderEdit('${id}')"]`);
-  const o       = DB.orders.find(x => String(x.id) === String(id));
 
-  if (!navigator.onLine) {
-    if (o) { o.boxes = qty; o.deliveryDate = date; o.time = time; o.address = address; }
-    if (btn) btn.innerHTML = '<i data-feather="check" class="w-4 h-4 text-amber-500"></i>';
-    updateLocalCache();
-    enqueueAction('updateOrderStatus', { id, qty, date, time, address, status: null });
-    showOfflineToast('✏️ Order #' + id + ' edit saved offline');
-    return;
-  }
-
-  if (btn) {
-    const orig = btn.innerHTML;
-    btn.innerHTML = '<i data-feather="loader" class="w-4 h-4 animate-spin"></i>'; 
-    btn.disabled = true;
-    
-    try {
-      // 🔥 1. INSTANT UI UPDATE
-      if (o) { o.boxes = qty; o.deliveryDate = date; o.time = time; o.address = address; }
-      updateLocalCache(); // Secure it in the cache!
-      if (typeof render === 'function') render();
-      
-      // 🔥 2. Push to Firebase
-      if (window.FirebaseAPI) {
-        await window.FirebaseAPI.updateOrderStatus(id, null, qty, date, time, address);
-      }
-      
-      btn.innerHTML = '<i data-feather="check" class="w-4 h-4 text-green-600"></i>';
-      setTimeout(() => { if(btn){ btn.innerHTML = orig; btn.disabled = false; feather.replace(); } }, 1500);
-      updMsg(id);
-    } catch (e) {
-      if(btn){ btn.innerHTML = '<i data-feather="x" class="w-4 h-4 text-red-500"></i>'; btn.disabled = false; feather.replace(); }
-      showToast('❌ Save failed: ' + e.message, true);
-    }
-  }
+  const updates = { id: id, status: null, qty: qty, date: date, time: time, address: address };
+  
+  dispatch('UPDATE_ORDER', updates);
+  setTimeout(() => updMsg(id), 500); // Give it a split second to re-render, then update the WhatsApp message
 }
 
-export async function doDel(id) {
+// 🔥 Engine-Powered Delete/Deliver
+export function doDel(id) {
   const qty     = document.getElementById('q-' + id).value;
   const date    = document.getElementById('d-' + id).value;
   const timeEl  = document.getElementById('t-' + id);
   const time    = timeEl ? timeEl.value : '09:00';
   const address = document.getElementById('a-' + id).value;
-  const btn     = document.querySelector(`button[onclick="doDel('${id}')"]`);
 
-  if (!navigator.onLine) {
-    const o = DB.orders.find(x => String(x.id) === String(id));
-    if (o) { o.status = 'Delivered'; o.boxes = qty; o.deliveryDate = date; o._offline = true; }
-    updateLocalCache();
-    if (typeof render === 'function') render();
-    enqueueAction('updateOrderStatus', { id, status: 'Delivered', qty, date, time, address });
-    showOfflineToast('✅ Order #' + id + ' marked delivered offline');
-    return;
-  }
-
-  if (btn) btn.innerText = "SAVING...";
+  const updates = { id: id, status: 'Delivered', qty: qty, date: date, time: time, address: address };
   
-  try {
-    // 🔥 1. INSTANT UI UPDATE
-    const o = DB.orders.find(x => String(x.id) === String(id));
-    if (o) { o.status = 'Delivered'; o.boxes = qty; o.deliveryDate = date; }
-    updateLocalCache(); // Secure it in the cache!
-    if (typeof render === 'function') render();
-
-    // 🔥 2. Push to Firebase
-    if (window.FirebaseAPI) {
-      await window.FirebaseAPI.updateOrderStatus(id, "Delivered", qty, date, time, address);
-    }
-  } catch (err) {
-    if (btn) btn.innerText = "DELIVER →";
-    const o = DB.orders.find(x => String(x.id) === String(id));
-    if (o) { o.status = 'Delivered'; o._offline = true; }
-    updateLocalCache();
-    if (typeof render === 'function') render();
-    enqueueAction('updateOrderStatus', { id, status: 'Delivered', qty, date, time, address });
-    showOfflineToast('✅ Saved offline — will sync on reconnect');
-  }
+  dispatch('UPDATE_ORDER', updates);
 }
