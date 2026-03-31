@@ -319,16 +319,397 @@
 ══════════════════════════════════════════════════════════════ -->
 <main class="main-content flex-1 h-full overflow-y-auto no-scrollbar
              pt-[78px] lg:pt-8 px-4 lg:px-8">
-  <div id="view-orders">...</div>
-  <div id="view-stock"       class="hidden">...</div>
-  <div id="view-payments"    class="hidden">...</div>
-  <div id="view-customers"   class="hidden">...</div>
-  <div id="view-cust-detail" class="hidden">...</div>
-  <div id="view-leads"       class="hidden">...</div>
-  <div id="view-smart"       class="hidden">...</div>
-  <div id="view-dashboard"   class="hidden">...</div>
-</main>
+  <div id="view-orders" class="max-w-5xl mx-auto grid grid-cols-1 xl:grid-cols-12 gap-6">
+    <div class="xl:col-span-5">
+      <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 sticky top-4">
+        <div class="flex items-center gap-2 mb-4 pb-2 border-b border-slate-100">
+          <div class="w-1.5 h-4 bg-blue-500 rounded-full"></div>
+          <h3 class="font-bold text-slate-400 text-[10px] uppercase tracking-widest">NEW ORDER</h3>
+        </div>
+        <details class="mb-4 bg-indigo-50 rounded-xl border border-indigo-100 shadow-sm group">
+          <summary class="list-none p-3 flex items-center justify-between cursor-pointer">
+            <h4 class="text-xs font-bold text-indigo-800 uppercase tracking-wider flex items-center gap-2"><i data-feather="cpu" class="w-4 h-4"></i> AI Auto-Fill</h4>
+            <i data-feather="chevron-down" class="w-4 h-4 text-indigo-400 group-open:rotate-180 transition"></i>
+            <span id="ai-status" class="hidden text-[10px] font-bold text-indigo-600 animate-pulse ml-auto mr-2">✨ PROCESSING...</span>
+          </summary>
+          <div class="px-3 pb-3 pt-0">
+            <div class="mb-3 relative">
+              <textarea id="ai-text" rows="2" class="w-full p-3 pr-12 bg-white border border-indigo-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition" placeholder="Tap Mic or type..."></textarea>
+              <button onclick="startVoiceInput()" id="btn-mic" class="absolute right-2 top-2 w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition flex items-center justify-center"><i data-feather="mic" class="w-4 h-4"></i></button>
+            </div>
+            <div class="flex gap-2">
+              <button onclick="runAiText()" class="flex-1 py-2 bg-indigo-600 text-white rounded-lg font-bold text-xs shadow-sm flex items-center justify-center gap-1"><i data-feather="type" class="w-3 h-3"></i> TEXT</button>
+              <label class="flex-1 py-2 bg-white text-indigo-600 border border-indigo-200 rounded-lg font-bold text-xs shadow-sm flex items-center justify-center gap-1 cursor-pointer"><i data-feather="image" class="w-3 h-3"></i> IMAGE <input type="file" accept="image/*" class="hidden" onchange="runAiImage(this)"></label>
+            </div>
+            <div class="hidden"><select id="voice-lang"><option value="en-IN">EN</option></select></div>
+          </div>
+        </details>
+        <form onsubmit="placeOrder(event)" class="space-y-4">
+          <select id="ord-cust" onchange="fillCust()" class="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 h-12 focus:ring-2 focus:ring-blue-500 outline-none" required></select>
+          <select id="ord-sku" class="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 h-12 focus:ring-2 focus:ring-blue-500 outline-none">
+            <option value="200ml">💧 200ml Water</option>
+            <option value="500ml">💧 500ml Water</option>
+            <option value="1L">💧 1 Liter Water</option>
+            <option value="cd">🥤 Cold Drink</option>
+          </select>
+          <textarea id="ord-addr" rows="2" class="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Notes..."></textarea>
+          <div class="mb-4 relative">
+            <label class="block text-gray-700 text-sm font-bold mb-2">Delivery Location (Optional)</label>
+            <input id="location-picker" type="text" onclick="initMap()" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Search Area...">
+            <input type="hidden" id="maps-link-hidden" name="mapLink">
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div class="relative">
+              <label class="absolute -top-2 left-2 text-[9px] font-bold bg-white px-1 text-blue-500">QTY</label>
+              <input type="number" id="ord-qty" oninput="calc()" value="1" min="1" class="w-full p-3.5 bg-blue-50 border border-blue-100 rounded-xl text-center font-black text-lg text-blue-700 h-14 focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+            <div class="relative">
+              <label class="absolute -top-2 left-2 text-[9px] font-bold bg-white px-1 text-slate-400">RATE</label>
+              <input type="number" id="ord-rate" oninput="calc()" class="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-center font-bold text-lg h-14 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="₹">
+            </div>
+          </div>
+          <input type="hidden" id="ord-staff" value="Nilesh">
+          <input type="text" id="ord-mob" class="hidden">
+          <div class="grid grid-cols-2 gap-4">
+            <input type="date" id="ord-date" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold h-12 outline-none" required>
+            <input type="time" id="ord-time" value="09:00" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold h-12 outline-none">
+          </div>
+          <div class="flex items-center justify-between gap-4 pt-2">
+            <div class="bg-slate-50 px-4 py-2 rounded-xl border border-slate-100 shrink-0">
+              <div class="text-[9px] font-bold text-slate-400 uppercase leading-none mb-1">Total</div>
+              <div id="ord-total" class="text-xl font-black text-slate-800 leading-tight">₹0</div>
+            </div>
+            <button type="submit" id="btn-save" class="flex-1 bg-slate-900 text-white py-4 rounded-xl font-bold text-sm shadow-lg active:scale-95 transition hover:bg-slate-800">CONFIRM ORDER</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    <div class="xl:col-span-7">
+      <div class="mb-4">
+        <input type="text" id="ord-search-input" placeholder="🔍 Search Order # or Name..." class="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm font-bold shadow-sm focus:ring-2 focus:ring-blue-500 outline-none transition">
+      </div>
+      <div class="flex items-center justify-between mb-4 px-1">
+        <div class="flex items-center gap-3">
+          <h3 class="font-bold text-slate-700">PENDING</h3>
+          <button onclick="shareSchedule()" class="bg-green-600 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold shadow-md flex items-center gap-1 hover:bg-green-700 active:scale-95 transition"><i data-feather="send" class="w-3 h-3"></i> SEND TO NILESH</button>
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="flex bg-white rounded-lg p-1 border shadow-sm">
+            <button onclick="toggleFilter(true)" id="filter-today" class="px-3 py-1 text-xs font-bold rounded-md text-slate-500">Today <span id="cnt-today" class="ml-0.5 text-[9px] opacity-70"></span></button>
+            <button onclick="toggleFilter(false)" id="filter-all" class="px-3 py-1 text-xs font-bold rounded-md bg-blue-100 text-blue-700">All</button>
+          </div>
+          <button onclick="toggleSort()" id="btn-sort" class="w-8 h-8 rounded-lg bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center shadow-sm active:scale-95 transition"><i data-feather="check-square" class="w-4 h-4"></i></button>
+        </div>
+      </div>
+      <div id="list-orders" class="space-y-4 pb-12"></div>
+    </div>
+  </div>
 
+  <!-- ===== STOCK VIEW ===== -->
+  <div id="view-stock" class="hidden max-w-2xl mx-auto space-y-5">
+    <div class="grid grid-cols-3 gap-3">
+      <div class="bg-indigo-600 text-white p-4 rounded-2xl shadow-lg col-span-1">
+        <div class="text-xs font-bold opacity-70">NET STOCK</div>
+        <div id="stat-stock" class="text-3xl font-black mt-1">0</div>
+        <div class="text-[10px] opacity-60 mt-1">Available</div>
+      </div>
+      <div class="bg-emerald-500 text-white p-4 rounded-2xl shadow-lg col-span-1">
+        <div class="text-xs font-bold opacity-70">TODAY PROD</div>
+        <div id="stat-today-prod" class="text-3xl font-black mt-1">0</div>
+        <div class="text-[10px] opacity-60 mt-1">Produced</div>
+      </div>
+      <div class="bg-orange-500 text-white p-4 rounded-2xl shadow-lg col-span-1">
+        <div class="text-xs font-bold opacity-70">TODAY DEL</div>
+        <div id="stat-today-del" class="text-3xl font-black mt-1">0</div>
+        <div class="text-[10px] opacity-60 mt-1">Delivered</div>
+      </div>
+    </div>
+    <div id="sku-stock-breakdown" class="mt-3 rounded-xl border border-slate-100 p-3 bg-slate-50"></div>
+    <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+      <div class="flex justify-between items-center mb-2">
+        <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Stock Level</span>
+        <span id="stock-level-label" class="text-xs font-black text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">Checking...</span>
+      </div>
+      <div class="w-full bg-slate-100 rounded-full h-4 overflow-hidden">
+        <div id="stock-bar" class="stock-bar-fill h-full rounded-full bg-emerald-500 w-0"></div>
+      </div>
+      <div class="flex justify-between text-[9px] font-bold text-slate-400 mt-1.5">
+        <span>0</span>
+        <span id="stock-bar-max" class="text-slate-300">Max</span>
+      </div>
+    </div>
+    <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Add Production</div>
+      <div class="flex gap-2 mb-3">
+        <button onclick="setStockQty(10)" class="flex-1 py-2 bg-slate-100 text-slate-600 rounded-lg font-bold text-sm hover:bg-indigo-50 hover:text-indigo-700 transition">+10</button>
+        <button onclick="setStockQty(20)" class="flex-1 py-2 bg-slate-100 text-slate-600 rounded-lg font-bold text-sm hover:bg-indigo-50 hover:text-indigo-700 transition">+20</button>
+        <button onclick="setStockQty(50)" class="flex-1 py-2 bg-slate-100 text-slate-600 rounded-lg font-bold text-sm hover:bg-indigo-50 hover:text-indigo-700 transition">+50</button>
+        <button onclick="setStockQty(100)" class="flex-1 py-2 bg-slate-100 text-slate-600 rounded-lg font-bold text-sm hover:bg-indigo-50 hover:text-indigo-700 transition">+100</button>
+      </div>
+      <div class="flex gap-3">
+        <input id="prod-val" type="number" placeholder="Custom Qty" class="flex-1 p-3 bg-slate-50 rounded-xl border border-slate-200 font-bold text-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+        <select id="prod-sku" class="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 h-12 focus:ring-2 focus:ring-blue-500 outline-none mb-2">
+          <option value="200ml">💧 200ml Water</option>
+          <option value="500ml">💧 500ml Water</option>
+          <option value="1L">💧 1 Liter Water</option>
+          <option value="cd">🥤 Cold Drink</option>
+        </select>
+        <button onclick="saveStock()" class="bg-slate-900 text-white px-6 rounded-xl font-bold hover:bg-slate-800 active:scale-95 transition">ADD</button>
+      </div>
+    </div>
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+      <div class="px-4 py-3 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+        <span class="text-xs font-bold text-slate-600 uppercase tracking-wider">Recent Activity</span>
+        <span class="text-[10px] text-slate-400">Last 15 entries</span>
+      </div>
+      <div id="list-stock" class="divide-y divide-slate-100"></div>
+    </div>
+  </div>
+
+  <!-- ===== PAYMENTS VIEW ===== -->
+  <div id="view-payments" class="hidden max-w-lg mx-auto">
+    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+      <h3 class="font-bold text-center text-slate-800 mb-6">Record Payment</h3>
+      <form onsubmit="submitPayment(event)" class="space-y-5">
+        <select id="pay-customer" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700" required></select>
+        <div class="relative mt-5">
+          <label class="absolute -top-2 left-3 text-[10px] font-bold bg-white px-1 text-slate-400">DATE</label>
+          <input type="date" id="pay-date" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 outline-none focus:border-blue-500 transition">
+        </div>
+        <div class="relative">
+          <span class="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-slate-400">₹</span>
+          <input type="number" id="pay-amount" placeholder="Amount" class="w-full p-4 pl-8 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xl" required>
+        </div>
+        <button type="submit" class="w-full bg-purple-600 text-white font-bold py-4 rounded-xl shadow-lg">CONFIRM PAYMENT</button>
+      </form>
+    </div>
+    <!-- SMS Bot -->
+    <div class="mt-6 bg-slate-900 rounded-2xl p-4 shadow-lg text-white relative overflow-hidden border border-slate-700">
+      <div class="flex justify-between items-center mb-4">
+        <div><h3 class="font-black text-sm tracking-wider flex items-center gap-2"><i data-feather="cpu" class="text-blue-400"></i> SMS AUTO-BOT</h3><p class="text-[10px] text-slate-400 font-mono">MacroDroid Bridge • 2 msg/min</p></div>
+        <div class="text-right"><div class="text-xs font-bold text-blue-400" id="sms-quota">0/50</div><div class="text-[9px] text-slate-500">DAILY LIMIT</div></div>
+      </div>
+      <div id="sms-status-bar" class="hidden bg-slate-800 rounded-lg p-3 mb-4 border border-slate-700">
+        <div class="flex justify-between text-xs font-bold mb-1"><span class="text-green-400 animate-pulse flex items-center gap-2">● SENDING...</span><span id="sms-timer" class="font-mono text-slate-300">Next: 30s</span></div>
+        <div class="w-full bg-slate-700 h-1.5 rounded-full overflow-hidden mb-2"><div id="sms-progress" class="bg-blue-500 h-full w-0 transition-all duration-1000 ease-linear"></div></div>
+        <div id="sms-console" class="text-[9px] font-mono text-slate-400 h-12 overflow-y-auto leading-tight p-1 bg-black/20 rounded">System Ready...</div>
+      </div>
+      <div class="flex gap-2 mb-3">
+        <button onclick="renderSmsCandidates()" class="flex-1 py-3 bg-slate-700 hover:bg-slate-600 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2"><i data-feather="refresh-cw" class="w-3 h-3"></i> LOAD CANDIDATES</button>
+        <button onclick="startSmsBatch()" id="btn-sms-run" class="flex-1 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold shadow-lg transition flex items-center justify-center gap-2"><i data-feather="play" class="w-3 h-3"></i> START BATCH</button>
+      </div>
+      <div id="sms-candidate-list" class="bg-slate-800 rounded-xl p-2 max-h-48 overflow-y-auto divide-y divide-slate-700/50 hidden"></div>
+    </div>
+    <div class="mt-6">
+      <h4 class="font-bold text-slate-400 text-xs uppercase mb-3 ml-2">Recent Transactions</h4>
+      <div id="list-payments" class="bg-white rounded-2xl shadow-sm border border-slate-200 divide-y divide-slate-100 overflow-hidden"></div>
+    </div>
+  </div>
+
+  <!-- ===== AI / CUSTOMERS VIEW ===== -->
+  <div id="view-customers" class="hidden max-w-2xl mx-auto">
+    <div class="mb-6 bg-white rounded-2xl shadow-lg border border-indigo-100 overflow-hidden flex flex-col h-[500px]">
+      <div class="bg-indigo-600 p-3 text-white flex justify-between items-center shadow-md">
+        <div class="flex items-center gap-2">
+          <div class="bg-white/20 p-1.5 rounded-lg"><i data-feather="cpu" class="w-5 h-5 text-white"></i></div>
+          <div><h3 class="font-bold text-base leading-tight">Anjani AI</h3><p class="text-[10px] text-indigo-100 flex items-center gap-1"><span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span> Online • All Data</p></div>
+        </div>
+        <button onclick="clearHistory()" class="text-xs bg-indigo-700 px-3 py-1 rounded hover:bg-indigo-500 transition">Clear</button>
+      </div>
+      <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50 scroll-smooth">
+        <div class="flex justify-start"><div class="bg-white border border-slate-200 p-3 rounded-xl shadow-sm text-sm text-slate-600 max-w-[85%]">👋 I'm ready. I have read your <b>AI_Brain</b> and <b>Full Database</b>.</div></div>
+      </div>
+      <div class="px-3 pt-2 bg-white border-t border-slate-200">
+        <div class="flex gap-1.5 mb-2 overflow-x-auto no-scrollbar pb-1">
+          <select id="ai-task-type" onchange="applyTaskType()" style="width:32px;min-width:32px;max-width:32px;padding:4px 0px;text-align:center;-webkit-appearance:none;appearance:none;" class="flex-shrink-0 bg-indigo-50 border border-indigo-200 text-indigo-700 text-[10px] font-bold rounded-lg outline-none focus:ring-2 focus:ring-indigo-400 cursor-pointer">
+            <option value="">⚡</option>
+            <optgroup label="📊Reports">
+              <option value="summarize">📋 Summarize Today</option>
+              <option value="dues">💰 Show All Dues</option>
+              <option value="stock">📦 Check Stock</option>
+              <option value="pending">🕐 Pending Orders</option>
+              <option value="revenue">💵 Revenue Report</option>
+            </optgroup>
+            <optgroup label="🔍 Explain">
+              <option value="explain_order">🔍 Explain an Order</option>
+              <option value="explain_customer">👤 Explain Customer</option>
+              <option value="top_customers">🏆 Top Customers</option>
+            </optgroup>
+            <optgroup label="✍️ Actions">
+              <option value="place_order">📦 Place Order</option>
+              <option value="record_payment">💳 Record Payment</option>
+              <option value="add_stock">🏭 Add Stock</option>
+              <option value="add_client">➕ Add New Client</option>
+            </optgroup>
+          </select>
+          <button onclick="quickFill('client')" class="flex-shrink-0 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold px-2 py-1.5 rounded-lg border border-blue-700 transition active:scale-95">+C</button>
+          <button onclick="quickFill('order')" class="flex-shrink-0 bg-slate-800 hover:bg-slate-700 text-white text-[10px] font-bold px-2 py-1.5 rounded-lg border border-slate-700 transition active:scale-95">+O</button>
+          <button onclick="quickFill('payment')" class="flex-shrink-0 bg-purple-600 hover:bg-purple-700 text-white text-[10px] font-bold px-2 py-1.5 rounded-lg border border-purple-700 transition active:scale-95">+P</button>
+          <button onclick="quickSend('today orders')" class="flex-shrink-0 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 text-slate-600 text-[10px] font-bold px-2 py-1.5 rounded-lg border border-slate-200 transition active:scale-95">📅T</button>
+          <button onclick="quickSend('daily summary')" class="flex-shrink-0 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 text-slate-600 text-[10px] font-bold px-2 py-1.5 rounded-lg border border-slate-200 transition active:scale-95">📊SM</button>
+          <button onclick="quickSend('show all dues')" class="flex-shrink-0 bg-red-50 hover:bg-red-100 text-red-600 text-[10px] font-bold px-2 py-1.5 rounded-lg border border-red-100 transition active:scale-95">💰D</button>
+          <button onclick="quickSend('check stock')" class="flex-shrink-0 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-1.5 rounded-lg border border-emerald-100 transition active:scale-95">📦ST</button>
+        </div>
+      </div>
+      <div class="px-3 pb-3 bg-white flex gap-2 items-end">
+        <textarea id="chat-input" placeholder="Message..." class="flex-1 bg-slate-100 border-0 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none resize-none overflow-hidden" rows="1" style="min-height: 36px; max-height: 36px;" oninput="this.style.height = ''; this.style.height = this.scrollHeight + 'px'" onkeydown="if(event.key==='Enter' && !event.shiftKey){ event.preventDefault(); sendChat(); }"></textarea>
+        <button onclick="sendChat()" class="bg-indigo-600 text-white rounded-xl flex items-center justify-center shadow-md active:scale-95 transition" style="height:36px;min-width:36px;width:36px;"><i data-feather="send" class="w-5 h-5 ml-1"></i></button>
+      </div>
+    </div>
+    <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 mb-6 flex justify-between items-center">
+      <h3 class="font-bold text-slate-800 flex items-center gap-2"><i data-feather="users" class="text-blue-500"></i> Clients</h3>
+      <button onclick="openCustForm()" class="bg-slate-900 text-white px-4 py-2 rounded-lg text-xs font-bold">+ NEW</button>
+    </div>
+    <div class="flex gap-2 mb-4">
+      <input type="text" onkeyup="renderCustomers(this.value)" placeholder="Search Name..." class="flex-1 p-3 bg-white border border-slate-200 rounded-xl text-sm">
+      <button onclick="renderCustomers('FLAGGED')" class="bg-red-50 text-red-600 px-4 rounded-xl font-bold text-lg border border-red-100 shadow-sm">🚩</button>
+      <button onclick="startBroadcast()" class="bg-blue-600 text-white px-4 rounded-xl font-bold text-lg border border-blue-800 shadow-sm ml-2 active:scale-95 transition">📢</button>
+    </div>
+    <div id="cust-filter-status" class="hidden text-xs font-bold text-slate-400 mb-2 text-center"></div>
+    <div id="list-customers" class="space-y-3"></div>
+  </div>
+
+  <!-- ===== CUSTOMER DETAIL VIEW ===== -->
+  <div id="view-cust-detail" class="hidden max-w-3xl mx-auto">
+    <button onclick="go('customers')" class="mb-4 flex items-center text-xs font-bold text-slate-500 bg-white px-3 py-2 rounded-lg border border-slate-200 shadow-sm w-fit"><i data-feather="arrow-left" class="w-4 h-4 mr-1"></i> BACK</button>
+    <div id="cust-detail-card" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-6 relative overflow-hidden"></div>
+    <div id="cd-history" class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden divide-y divide-slate-100"></div>
+  </div>
+
+  <!-- ===== LEADS VIEW ===== -->
+  <div id="view-leads" class="hidden pb-20">
+    <div class="bg-white border-b border-slate-200 shadow-sm p-4 sticky top-0 z-20">
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+        <div class="flex items-center gap-2 shrink-0">
+          <div class="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center"><i data-feather="target" class="w-4 h-4"></i></div>
+          <h2 class="text-lg font-bold text-slate-800 tracking-tight">LEADS</h2>
+          <button onclick="runCombo()" class="ml-4 bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg shadow-md flex items-center gap-2 text-xs font-bold transition"><i data-feather="layers" class="w-3 h-3"></i> COMBO</button>
+        </div>
+        <div class="flex bg-slate-100 rounded-lg p-1">
+          <button onclick="setLeadFilter('ALL')" id="lf-ALL" class="px-3 py-1.5 rounded-md text-xs font-bold transition bg-white text-blue-600 shadow-sm border border-slate-200">ALL</button>
+          <button onclick="setLeadFilter('New')" id="lf-New" class="px-3 py-1.5 rounded-md text-xs font-medium transition text-slate-500 hover:bg-slate-200">NEW</button>
+          <button onclick="setLeadFilter('Sam')" id="lf-Sample" class="px-3 py-1.5 rounded-md text-xs font-medium transition text-slate-500 hover:bg-slate-200">SAM</button>
+          <button onclick="setLeadFilter('Waiting')" id="lf-Waiting" class="px-3 py-1.5 rounded-md text-xs font-medium transition text-slate-500 hover:bg-slate-200">WAIT</button>
+          <button onclick="startLeadOnlyBroadcast()" class="ml-2 px-3 py-1.5 rounded-md text-xs font-bold bg-slate-800 text-white shadow-md hover:bg-slate-700 active:scale-95 transition flex items-center gap-2"><i data-feather="radio" class="w-3 h-3"></i> CAMPAIGN</button>
+        </div>
+      </div>
+      <div class="flex gap-2">
+        <input type="text" id="lead-input" placeholder="Paste Number or Text..." class="flex-1 bg-slate-50 border border-slate-200 text-slate-800 text-sm rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 transition shadow-inner font-medium placeholder:text-slate-400">
+        <button onclick="addLead()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 rounded-lg text-sm shadow-md active:scale-95 transition">SAVE</button>
+        <button onclick="triggerGmailScan()" id="btn-gmail-scan" class="flex items-center gap-1 bg-red-50 text-red-600 border border-red-200 font-bold px-3 rounded-lg text-xs shadow-sm active:scale-95 transition hover:bg-red-100"><i data-feather="mail" class="w-3 h-3"></i> Scan</button>
+      </div>
+      <div class="text-[10px] text-slate-400 text-right mt-1 font-mono">New: <span id="stat-new">0</span> | Sample: <span id="stat-sample">0</span></div>
+    </div>
+    <div id="list-leads" class="divide-y divide-slate-100"></div>
+    <div class="mt-8 text-center"><button onclick="runArchive()" class="text-[10px] font-bold text-slate-400 underline hover:text-slate-600 transition">Archive Leads > 30 Days Old</button></div>
+  </div>
+
+  <!-- ===== SMART ACTIONS VIEW ===== -->
+  <div id="view-smart" class="hidden max-w-2xl mx-auto pb-24">
+    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm mb-4 flex justify-between items-center sticky top-0 z-10">
+      <div><h2 class="text-lg font-black text-slate-800 flex items-center gap-2"><i data-feather="zap" class="w-5 h-5 text-purple-600"></i> Smart Actions</h2><p class="text-slate-400 text-[10px] font-bold mt-0.5 uppercase tracking-wider">Daily Growth Plan</p></div>
+      <div class="flex items-center gap-3">
+        <button onclick="startSmartBroadcast()" class="bg-indigo-600 text-white px-3 py-2 rounded-xl font-bold text-xs shadow-md active:scale-95 transition flex items-center gap-2"><i data-feather="radio" class="w-4 h-4"></i> AUTO RUN</button>
+        <div class="text-right"><div class="text-[9px] font-bold text-slate-400">TODAY</div><div id="smart-date" class="text-base font-black text-slate-800">...</div></div>
+      </div>
+    </div>
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm mb-6 overflow-hidden">
+      <div class="bg-slate-50 p-4 border-b border-slate-200 flex justify-between items-center">
+        <h3 class="font-black text-slate-700 text-sm uppercase tracking-wide flex items-center gap-2"><i data-feather="briefcase" class="w-4 h-4 text-blue-600"></i> Staff Jobs</h3>
+        <div class="flex bg-white rounded-lg p-1 border border-slate-200 shadow-sm">
+          <button onclick="filterJobs('Active')" id="tab-job-active" class="px-3 py-1 text-[10px] font-bold rounded-md bg-blue-100 text-blue-700 transition">Active</button>
+          <button onclick="filterJobs('Done')" id="tab-job-done" class="px-3 py-1 text-[10px] font-bold rounded-md text-slate-400 hover:bg-slate-50 transition">Done</button>
+        </div>
+      </div>
+      <div id="job-input-area" class="p-4 border-b border-slate-100 flex gap-2">
+        <input id="job-input" type="text" placeholder="New Task..." class="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none transition" onkeypress="if(event.key==='Enter') runJob('CREATE')">
+        <button onclick="runJob('CREATE')" class="bg-blue-600 text-white w-12 rounded-xl flex items-center justify-center shadow-md active:scale-95 transition hover:bg-blue-700"><i data-feather="plus" class="w-5 h-5"></i></button>
+      </div>
+<div id="job-list" class="divide-y divide-slate-100 max-h-[400px] overflow-y-auto min-h-[48px]"></div>
+<div class="p-3 bg-slate-50 border-t border-slate-200 flex gap-2 flex-wrap">
+  <input id="sj-ph" id="sj-ph" value="" style="width:140px;padding:5px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:11px;background:#fff">
+  <button onclick="sjSendWA()" class="flex-1 bg-green-600 text-white rounded-lg text-xs font-bold py-2 flex items-center justify-center gap-1"><i data-feather="message-circle" class="w-3 h-3"></i> WhatsApp</button>
+  <button onclick="sjSendSMS()" class="flex-1 bg-indigo-600 text-white rounded-lg text-xs font-bold py-2 flex items-center justify-center gap-1"><i data-feather="message-square" class="w-3 h-3"></i> SMS</button>
+  <button onclick="sjSendWA();setTimeout(sjSendSMS,800)" class="flex-1 bg-purple-600 text-white rounded-lg text-xs font-bold py-2">⚡ Both</button>
+</div>
+<div id="due-followup-bar" class="hidden p-3 border-t border-orange-100 bg-orange-50">
+  <button onclick="sendAllDueFollowUps()" class="w-full bg-orange-500 text-white rounded-lg text-xs font-bold py-2.5 flex items-center justify-center gap-2 active:scale-95 transition hover:bg-orange-600">
+    <i data-feather="refresh-cw" class="w-3 h-3"></i> Follow Up All Overdue Tasks
+  </button>
+</div>
+    </div>
+    <!-- NILESH BRIEF SECTION -->
+<div class="bg-white rounded-xl border border-slate-200 shadow-sm mb-6 overflow-hidden">
+  <div class="bg-slate-50 p-4 border-b border-slate-200 flex justify-between items-center">
+    <h3 class="font-black text-slate-700 text-sm uppercase tracking-wide flex items-center gap-2"><i data-feather="user" class="w-4 h-4 text-green-600"></i> Nilesh Briefing</h3>
+    <span class="text-[10px] text-slate-400 font-bold" id="nilesh-time"></span>
+  </div>
+  <div class="p-4">
+    <button onclick="sendSmartBrief()" class="w-full bg-slate-900 text-white rounded-xl p-4 text-sm font-bold flex items-center justify-center gap-3 active:scale-95 transition hover:bg-slate-800">
+      <i data-feather="send" class="w-5 h-5"></i>
+      <span id="smart-brief-label">Send Nilesh Brief</span>
+    </button>
+    <div id="smart-brief-hint" class="text-center text-[10px] text-slate-400 font-bold mt-2"></div>
+  </div>
+</div>
+
+<!-- DAILY AUTOMATION SECTION -->
+<div class="bg-white rounded-xl border border-slate-200 shadow-sm mb-6 overflow-hidden">
+  <div class="bg-slate-50 p-4 border-b border-slate-200 flex justify-between items-center">
+    <h3 class="font-black text-slate-700 text-sm uppercase tracking-wide flex items-center gap-2"><i data-feather="clock" class="w-4 h-4 text-purple-600"></i> Daily Automation</h3>
+    <span class="text-[10px] text-purple-600 font-bold bg-purple-50 px-2 py-0.5 rounded-full border border-purple-100">AUTO</span>
+  </div>
+  <div id="daily-status-list" class="divide-y divide-slate-100"></div>
+  <div class="p-3 bg-slate-50 border-t border-slate-100">
+    <p class="text-[10px] text-slate-400 text-center">Checkpoints reset daily at midnight</p>
+  </div>
+</div>
+
+<div id="smart-list" class="space-y-4"></div>
+  </div>
+
+  <!-- ===== DASHBOARD VIEW ===== -->
+  <div id="view-dashboard" class="hidden max-w-7xl mx-auto pb-24">
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+      <div><h2 class="text-xl font-black text-slate-800 tracking-tight">Dashboard</h2><p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Overview</p></div>
+      <div class="flex bg-white rounded-xl p-1 shadow-sm border border-slate-200 w-full md:w-fit">
+        <button onclick="setDashPeriod('TODAY')" id="db-TODAY" class="flex-1 md:flex-none px-4 py-2 text-[10px] font-black rounded-lg text-slate-500 hover:bg-slate-50 transition-all">TODAY</button>
+        <button onclick="setDashPeriod('WEEK')" id="db-WEEK" class="flex-1 md:flex-none px-4 py-2 text-[10px] font-black rounded-lg text-slate-500 hover:bg-slate-50 transition-all">WEEK</button>
+        <button onclick="setDashPeriod('MONTH')" id="db-MONTH" class="flex-1 md:flex-none px-4 py-2 text-[10px] font-black rounded-lg bg-slate-900 text-white transition-all">MONTH</button>
+      </div>
+    </div>
+    <div id="stock-alert-container" class="hidden mb-4"></div>
+    <section class="grid grid-cols-2 xl:grid-cols-3 gap-3 mb-6" id="kpi-grid"></section>
+    <section class="grid grid-cols-1 xl:grid-cols-12 gap-6">
+      <div class="xl:col-span-5 space-y-6">
+        <div class="bg-white rounded-3xl p-6 text-slate-800 border border-slate-200 shadow-sm relative overflow-hidden">
+          <div class="relative z-10">
+            <h3 class="text-[10px] font-bold text-blue-400 uppercase tracking-widest mb-4">Daily Stock Flow</h3>
+            <div class="flex justify-between items-end border-b border-slate-100 pb-6 mb-4">
+              <div><div class="text-[9px] font-bold text-slate-400 uppercase">Net</div><div id="dash-stk-open" class="text-2xl font-black text-slate-700">0</div></div>
+              <div class="text-slate-300 text-xl">→</div>
+              <div><div class="text-[9px] font-bold text-blue-400 uppercase">Prod</div><div id="dash-stk-prod" class="text-2xl font-black text-blue-600">0</div></div>
+              <div class="text-slate-300 text-xl">→</div>
+              <div><div class="text-[9px] font-bold text-emerald-400 uppercase">Deliv</div><div id="dash-stk-del" class="text-2xl font-black text-emerald-600">0</div></div>
+            </div>
+            <div id="dash-sku-breakdown" class="mb-3"></div>
+            <div class="flex justify-between items-center">
+              <span class="text-[10px] font-bold text-slate-400">Inventory Status</span>
+              <span id="dash-stk-status" class="px-3 py-1 bg-slate-100 text-slate-400 rounded-full text-[10px] font-black uppercase tracking-tighter border border-slate-200">Checking...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="xl:col-span-7 bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+          <h3 class="font-black text-xs text-slate-700 uppercase tracking-wider">Pending Dues</h3>
+          <span class="text-[9px] font-bold text-slate-400">Top 20</span>
+        </div>
+        <div id="dash-drilldown" class="divide-y divide-slate-100 min-h-[300px]"></div>
+      </div>
+    </section>
+  </div>
+</main>
 <!-- ══════════════════════════════════════════════════════════════
      MOBILE BOTTOM NAV
      ALL FIXES:
