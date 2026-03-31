@@ -13,13 +13,9 @@
   <meta name="apple-mobile-web-app-title" content="ANJANI">
   <link rel="manifest" href="manifest.json">
 
-  <!-- Preconnect for performance -->
   <link rel="preconnect" href="https://cdnjs.cloudflare.com">
   <link rel="preconnect" href="https://esm.sh">
 
-  <!-- Import map: resolves bare npm specifiers (firebase/app, dexie, etc.)
-       to CDN URLs so the app works on GitHub Pages without a build step.
-       Vite ignores this map and uses node_modules when running locally. -->
   <script type="importmap">
   {
     "imports": {
@@ -32,24 +28,13 @@
   }
   </script>
 
-  <!-- Tailwind CSS — CDN for GitHub Pages; replaced by Vite build locally.
-       Run `npm run dev` for the Vite dev server (faster, no CDN). -->
   <script src="https://cdn.tailwindcss.com"></script>
-
-  <!-- App modules (Dexie cache + Sentry errors) — loaded after import map.
-       Use relative paths so they resolve correctly on GitHub Pages subdirectory. -->
   <script type="module" src="src/errors.js"></script>
   <script type="module" src="src/cache.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/feather-icons/4.29.0/feather.min.js"
-          integrity="sha384-RyE9TSx1shZZA6GS7TToIk1J7zY1mU8evbLDXYgOz4zgduwPFEtnHd1bswt8PG/u"
-          crossorigin="anonymous"></script>
- 
-  <!-- Google Identity Services — for Gmail OAuth access token -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/feather-icons/4.29.0/feather.min.js" crossorigin="anonymous"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 
   <style>
-     .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
-    /* ── ANJANI WATER · CALM WATER THEME ── */
     :root {
       --water-deep:   #0c4a6e;
       --water-mid:    #0369a1;
@@ -59,116 +44,41 @@
       --text-primary: #0c2340;
       --text-muted:   #64748b;
     }
-    .pac-container { z-index: 100000 !important; background-color: white; border: 1px solid #ccc; border-radius: 12px; box-shadow: 0 10px 30px rgba(12,74,110,0.12); }
-    .pac-item { padding: 10px; cursor: pointer; }
+    /* Safe Area Padding for modern mobile screens */
+    .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+    
+    .pac-container { z-index: 100000 !important; border-radius: 12px; box-shadow: 0 10px 30px rgba(12,74,110,0.12); }
     body {
-      font-family: 'Nunito', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-family: 'Nunito', -apple-system, sans-serif;
       -webkit-tap-highlight-color: transparent;
       background: #f8fafc;
-      background-image: radial-gradient(ellipse at 0% 0%, rgba(14,165,233,0.04) 0%, transparent 60%), radial-gradient(ellipse at 100% 100%, rgba(56,189,248,0.04) 0%, transparent 60%);
+      overscroll-behavior: none; /* Prevents "pull to refresh" on Chrome Android */
     }
     .no-scrollbar::-webkit-scrollbar { display: none; }
-    .nav-item.active { background: linear-gradient(135deg, #e0f2fe, rgba(14,165,233,0.12)); color: #0369a1; border-right: 3px solid #38bdf8; box-shadow: 0 2px 8px rgba(14,165,233,0.12); font-weight: 800; }
-    .nav-item { color: #64748b; border-right: 3px solid transparent; transition: all 0.2s; }
-    .nav-item:hover { background: rgba(14,165,233,0.06); color: #0c2340; }
+    .nav-item.active { background: linear-gradient(135deg, #e0f2fe, rgba(14,165,233,0.12)); color: #0369a1; border-right: 3px solid #38bdf8; font-weight: 800; }
     .mob-item.active { color: #0369a1; font-weight: 900; }
-    .mob-item { color: #94a3b8; transition: all 0.2s; }
-    .status-strip-New { border-left: 4px solid #3b82f6; }
-    .status-strip-Sample { border-left: 4px solid #a855f7; }
-    .status-strip-Follow-up { border-left: 4px solid #f97316; }
-    .status-strip-Connected { border-left: 4px solid #94a3b8; }
-    .kpi-card { transition: transform 0.2s, box-shadow 0.2s; }
-    .kpi-card:active { transform: scale(0.97); }
-    .border-critical { border-left: 6px solid #ef4444 !important; }
-    .border-warning { border-left: 6px solid #f59e0b !important; }
-    .stock-bar-fill { transition: width 1s ease-in-out; }
-    @keyframes pulse-red { 0%,100%{opacity:1} 50%{opacity:0.5} }
-    .pulse-red { animation: pulse-red 1.5s infinite; }
-    @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-5px)} 75%{transform:translateX(5px)} }
-    .animate-shake { animation: shake 0.2s ease-in-out 2; }
-    @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
-    @keyframes ripple-in { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
-    .ripple-in { animation: ripple-in 0.3s ease forwards; }
-
-    /* ── Offline indicator ── */
-    #offline-banner { display: none; position: fixed; top: 0; left: 0; right: 0; z-index: 9999;
-      background: #f59e0b; color: white; text-align: center; font-size: 11px; font-weight: bold;
-      padding: 6px; letter-spacing: 0.05em; }
+    
+    #offline-banner { display: none; position: fixed; top: 0; left: 0; right: 0; z-index: 9999; background: #f59e0b; color: white; text-align: center; font-size: 11px; padding: 6px; }
     body.is-offline #offline-banner { display: block; }
-    body.is-offline .main-content { margin-top: 28px; }
-
-    /* ── Sync queue badge ── */
-    #sync-badge { display: none; position: fixed; bottom: 88px; right: 16px; z-index: 60;
-      background: #f59e0b; color: white; border-radius: 999px; padding: 4px 10px;
-      font-size: 10px; font-weight: bold; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+    
+    /* Ensure loader doesn't block clicks when hidden */
+    #loader.hidden { display: none !important; pointer-events: none; }
   </style>
 </head>
 <body class="bg-slate-50 text-slate-800 h-screen w-screen overflow-hidden flex flex-col lg:flex-row">
 
-<!-- Offline banner -->
-<div id="offline-banner">⚡ OFFLINE MODE — Changes are queued and will sync when connected</div>
-  <div id="sync-badge">🔄 <span id="sync-count">0</span> queued</div>
-  <div id="offline-toast" style="position:fixed;top:72px;left:50%;transform:translateX(-50%);background:#f59e0b;color:white;padding:8px 20px;border-radius:999px;font-size:12px;font-weight:bold;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,0.2);transition:opacity 0.3s;opacity:0;pointer-events:none;"></div>
-<!-- ===================== BROADCAST OVERLAY ===================== -->
-<div id="broadcast-overlay" class="hidden fixed bottom-24 right-4 left-4 md:left-auto md:w-80 bg-slate-900 text-white p-4 rounded-2xl shadow-2xl z-50 flex flex-col gap-2 border border-slate-700">
-  <div class="flex justify-between items-center">
-    <div class="flex items-center gap-2"><span class="animate-pulse text-red-500">●</span><span class="font-bold text-sm tracking-wide">BROADCASTING</span></div>
-    <div id="bc-count" class="text-xs font-mono text-slate-400">0/0</div>
-  </div>
-  <div class="text-lg font-black truncate" id="bc-name">Preparing...</div>
-  <div class="bg-slate-800 rounded-full h-1.5 w-full overflow-hidden mt-1">
-    <div id="bc-bar" class="bg-blue-500 h-full w-0 transition-all duration-1000 ease-linear"></div>
-  </div>
-  <div class="flex justify-between items-center mt-1">
-    <div class="text-xs font-bold text-blue-400">Next in <span id="bc-timer">30</span>s</div>
-    <button onclick="stopBroadcast()" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-lg text-xs font-bold transition">STOP</button>
-  </div>
+<div id="offline-banner">⚡ OFFLINE MODE — Changes will sync when connected</div>
+<div id="sync-badge" style="display:none; position:fixed; bottom:88px; right:16px; z-index:60; background:#f59e0b; color:white; border-radius:999px; padding:4px 10px; font-size:10px; font-weight:bold;">🔄 <span id="sync-count">0</span> queued</div>
+
+<div id="loader" class="fixed inset-0 bg-white/95 backdrop-blur-sm z-[200] flex flex-col items-center justify-center">
+  <div class="text-5xl mb-4 text-blue-600 animate-spin">🌀</div>
+  <div class="font-bold text-slate-500 text-sm">LOADING SYSTEM...</div>
+  <div id="debug-log" class="mt-6 text-xs text-red-600 hidden max-w-xs text-center"></div>
 </div>
 
-<!-- ===================== BROADCAST CONFIRM MODAL ===================== -->
-<div id="modal-broadcast-confirm" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm">
-  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
-    <div class="bg-blue-600 p-4 text-white text-center">
-      <div class="font-bold text-lg tracking-wide flex items-center justify-center gap-2">
-        <i data-feather="radio" class="w-5 h-5"></i> AUTO-BROADCAST
-      </div>
-    </div>
-    <div class="p-6 text-center">
-      <div class="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4"><i data-feather="message-circle" class="w-8 h-8"></i></div>
-      <h3 class="font-bold text-slate-800 text-lg mb-2">Ready to Start?</h3>
-      <p class="text-slate-500 text-sm mb-6">Queue: <b id="bc-modal-count" class="text-blue-600 text-lg">0</b> messages.<br><span class="bg-slate-100 px-2 py-1 rounded text-xs font-bold text-slate-600">⚡ Speed: 1 Msg / 30s</span></p>
-      <div class="grid grid-cols-2 gap-3">
-        <button onclick="document.getElementById('modal-broadcast-confirm').classList.add('hidden')" class="py-3 bg-slate-100 text-slate-600 font-bold rounded-xl text-sm">CANCEL</button>
-        <button onclick="confirmBroadcastStart()" class="py-3 bg-blue-600 text-white font-bold rounded-xl text-sm shadow-lg">START 🚀</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ===================== ERROR HANDLER ===================== -->
-<script>
-  window.onerror = function(msg, url, line) {
-    setTimeout(function() {
-      const log = document.getElementById('debug-log');
-      const loader = document.getElementById('loader');
-      if (log) { log.innerText = "Error (Line " + line + "): " + msg; log.classList.remove('hidden'); }
-      if (loader) loader.classList.remove('hidden');
-    }, 100);
-  };
-</script>
-
-<!-- ===================== LOADER ===================== -->
-<div id="loader" class="fixed inset-0 bg-white/95 backdrop-blur-sm z-50 flex flex-col items-center justify-center">
-  <div class="text-5xl mb-4 text-blue-600" style="animation:spin 1s linear infinite;display:inline-block">🌀</div>
-  <div class="font-bold tracking-widest text-slate-500 text-sm">LOADING SYSTEM...</div>
-  <div id="debug-log" class="mt-6 text-xs text-red-600 font-mono bg-red-50 p-4 rounded border border-red-200 hidden max-w-xs text-center"></div>
-  <button onclick="window.location.reload()" class="mt-8 px-6 py-2 bg-slate-800 text-white rounded-full text-xs font-bold shadow-lg">RETRY</button>
-</div>
-
-<!-- ===================== SIDEBAR (DESKTOP) ===================== -->
-<aside class="hidden lg:flex w-64 bg-white flex-col h-full border-r border-sky-100 z-20" style="background:linear-gradient(180deg,#f0f9ff 0%,#ffffff 100%)">
-  <div class="h-20 flex items-center px-6 border-b" style="border-color:rgba(14,165,233,0.12)">
-    <h1 class="font-black text-xl tracking-wide" style="color:#0c4a6e">ANJANI<span style="color:#0ea5e9">WATER</span></h1>
+<aside class="hidden lg:flex w-64 bg-white flex-col h-full border-r border-sky-100 z-20">
+  <div class="h-20 flex items-center px-6 border-b">
+    <h1 class="font-black text-xl tracking-wide text-sky-900">ANJANI<span class="text-sky-500">WATER</span></h1>
   </div>
   <nav class="flex-1 py-6 space-y-1">
     <button onclick="go('orders')" id="d-btn-orders" class="nav-item active w-full flex items-center px-6 py-4 font-bold text-sm"><i data-feather="shopping-cart" class="mr-3 w-5 h-5"></i> ORDERS</button>
@@ -176,638 +86,46 @@
     <button onclick="go('customers')" id="d-btn-customers" class="nav-item w-full flex items-center px-6 py-4 font-bold text-sm"><i data-feather="users" class="mr-3 w-5 h-5"></i> ANJANI_AI</button>
     <button onclick="go('leads')" id="d-btn-leads" class="nav-item w-full flex items-center px-6 py-4 font-bold text-sm"><i data-feather="target" class="mr-3 w-5 h-5"></i> LEADS</button>
     <button onclick="go('stock')" id="d-btn-stock" class="nav-item w-full flex items-center px-6 py-4 font-bold text-sm"><i data-feather="package" class="mr-3 w-5 h-5"></i> STOCK</button>
-    <button onclick="go('smart')" id="d-btn-smart" class="nav-item w-full flex items-center px-6 py-4 font-bold text-sm text-purple-600"><i data-feather="zap" class="mr-3 w-5 h-5"></i> SMART ACTIONS <span id="smart-badge-desk" class="hidden ml-auto bg-orange-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full min-w-[18px] text-center"></span></button>
+    <button onclick="go('smart')" id="d-btn-smart" class="nav-item w-full flex items-center px-6 py-4 font-bold text-sm text-purple-600"><i data-feather="zap" class="mr-3 w-5 h-5"></i> SMART ACTIONS <span id="smart-badge-desk" class="hidden ml-auto bg-orange-500 text-white text-[9px] px-1.5 py-0.5 rounded-full"></span></button>
     <button onclick="go('dashboard')" id="d-btn-dashboard" class="nav-item w-full flex items-center px-6 py-4 font-bold text-sm"><i data-feather="grid" class="mr-3 w-5 h-5"></i> DASHBOARD</button>
   </nav>
-  <!-- Offline status in sidebar -->
-  <div id="sidebar-status" class="p-4 border-t border-slate-100">
-    <div id="connection-status" class="text-[10px] font-bold text-slate-400 flex items-center gap-2">
-      <span id="conn-dot" class="w-2 h-2 rounded-full bg-green-400"></span>
-      <span id="conn-text">Connected</span>
-    </div>
-  </div>
 </aside>
 
-<!-- ===================== MOBILE HEADER ===================== -->
-<header class="lg:hidden fixed top-0 w-full h-16 backdrop-blur-md border-b flex items-center justify-between px-5 z-20" style="background:rgba(240,249,255,0.95);border-color:rgba(14,165,233,0.15);box-shadow:0 2px 16px rgba(14,165,233,0.08)">
-  <div class="font-black text-lg tracking-tight" style="color:#0c4a6e">ANJANI<span style="color:#0ea5e9">WATER</span></div>
-  <div id="date-badge" class="text-[10px] font-bold px-3 py-1 rounded-full" style="background:#e0f2fe;color:#0369a1;border:1px solid rgba(14,165,233,0.2)">...</div>
+<header class="lg:hidden fixed top-0 w-full h-16 backdrop-blur-md border-b flex items-center justify-between px-5 z-40 bg-white/90">
+  <div class="font-black text-lg text-sky-900">ANJANI<span class="text-sky-500">WATER</span></div>
+  <div id="date-badge" class="text-[10px] font-bold px-3 py-1 rounded-full bg-sky-100 text-sky-700">...</div>
 </header>
 
-<!-- ===================== MAIN CONTENT ===================== -->
-<main class="main-content flex-1 h-full relative overflow-y-auto no-scrollbar pt-20 lg:pt-8 pb-32 lg:pb-8 px-4 lg:px-8" style="background:#f0f9ff;background-image:radial-gradient(ellipse at 10% 0%,rgba(14,165,233,0.06) 0%,transparent 50%)">
-  <div id="pdf-hidden-factory" class="fixed top-0 left-0 -z-50 opacity-0 pointer-events-none w-[400px] bg-white"></div>
-
-  <!-- ===== ORDERS VIEW ===== -->
-  <div id="view-orders" class="max-w-5xl mx-auto grid grid-cols-1 xl:grid-cols-12 gap-6">
-    <div class="xl:col-span-5">
-      <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 sticky top-4">
-        <div class="flex items-center gap-2 mb-4 pb-2 border-b border-slate-100">
-          <div class="w-1.5 h-4 bg-blue-500 rounded-full"></div>
-          <h3 class="font-bold text-slate-400 text-[10px] uppercase tracking-widest">NEW ORDER</h3>
-        </div>
-        <details class="mb-4 bg-indigo-50 rounded-xl border border-indigo-100 shadow-sm group">
-          <summary class="list-none p-3 flex items-center justify-between cursor-pointer">
-            <h4 class="text-xs font-bold text-indigo-800 uppercase tracking-wider flex items-center gap-2"><i data-feather="cpu" class="w-4 h-4"></i> AI Auto-Fill</h4>
-            <i data-feather="chevron-down" class="w-4 h-4 text-indigo-400 group-open:rotate-180 transition"></i>
-            <span id="ai-status" class="hidden text-[10px] font-bold text-indigo-600 animate-pulse ml-auto mr-2">✨ PROCESSING...</span>
-          </summary>
-          <div class="px-3 pb-3 pt-0">
-            <div class="mb-3 relative">
-              <textarea id="ai-text" rows="2" class="w-full p-3 pr-12 bg-white border border-indigo-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition" placeholder="Tap Mic or type..."></textarea>
-              <button onclick="startVoiceInput()" id="btn-mic" class="absolute right-2 top-2 w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition flex items-center justify-center"><i data-feather="mic" class="w-4 h-4"></i></button>
-            </div>
-            <div class="flex gap-2">
-              <button onclick="runAiText()" class="flex-1 py-2 bg-indigo-600 text-white rounded-lg font-bold text-xs shadow-sm flex items-center justify-center gap-1"><i data-feather="type" class="w-3 h-3"></i> TEXT</button>
-              <label class="flex-1 py-2 bg-white text-indigo-600 border border-indigo-200 rounded-lg font-bold text-xs shadow-sm flex items-center justify-center gap-1 cursor-pointer"><i data-feather="image" class="w-3 h-3"></i> IMAGE <input type="file" accept="image/*" class="hidden" onchange="runAiImage(this)"></label>
-            </div>
-            <div class="hidden"><select id="voice-lang"><option value="en-IN">EN</option></select></div>
-          </div>
-        </details>
-        <form onsubmit="placeOrder(event)" class="space-y-4">
-          <select id="ord-cust" onchange="fillCust()" class="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 h-12 focus:ring-2 focus:ring-blue-500 outline-none" required></select>
-          <select id="ord-sku" class="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 h-12 focus:ring-2 focus:ring-blue-500 outline-none">
-            <option value="200ml">💧 200ml Water</option>
-            <option value="500ml">💧 500ml Water</option>
-            <option value="1L">💧 1 Liter Water</option>
-            <option value="cd">🥤 Cold Drink</option>
-          </select>
-          <textarea id="ord-addr" rows="2" class="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Notes..."></textarea>
-          <div class="mb-4 relative">
-            <label class="block text-gray-700 text-sm font-bold mb-2">Delivery Location (Optional)</label>
-            <input id="location-picker" type="text" onclick="initMap()" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Search Area...">
-            <input type="hidden" id="maps-link-hidden" name="mapLink">
-          </div>
-          <div class="grid grid-cols-2 gap-4">
-            <div class="relative">
-              <label class="absolute -top-2 left-2 text-[9px] font-bold bg-white px-1 text-blue-500">QTY</label>
-              <input type="number" id="ord-qty" oninput="calc()" value="1" min="1" class="w-full p-3.5 bg-blue-50 border border-blue-100 rounded-xl text-center font-black text-lg text-blue-700 h-14 focus:ring-2 focus:ring-blue-500 outline-none">
-            </div>
-            <div class="relative">
-              <label class="absolute -top-2 left-2 text-[9px] font-bold bg-white px-1 text-slate-400">RATE</label>
-              <input type="number" id="ord-rate" oninput="calc()" class="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-center font-bold text-lg h-14 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="₹">
-            </div>
-          </div>
-          <input type="hidden" id="ord-staff" value="Nilesh">
-          <input type="text" id="ord-mob" class="hidden">
-          <div class="grid grid-cols-2 gap-4">
-            <input type="date" id="ord-date" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold h-12 outline-none" required>
-            <input type="time" id="ord-time" value="09:00" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold h-12 outline-none">
-          </div>
-          <div class="flex items-center justify-between gap-4 pt-2">
-            <div class="bg-slate-50 px-4 py-2 rounded-xl border border-slate-100 shrink-0">
-              <div class="text-[9px] font-bold text-slate-400 uppercase leading-none mb-1">Total</div>
-              <div id="ord-total" class="text-xl font-black text-slate-800 leading-tight">₹0</div>
-            </div>
-            <button type="submit" id="btn-save" class="flex-1 bg-slate-900 text-white py-4 rounded-xl font-bold text-sm shadow-lg active:scale-95 transition hover:bg-slate-800">CONFIRM ORDER</button>
-          </div>
-        </form>
-      </div>
-    </div>
-    <div class="xl:col-span-7">
-      <div class="mb-4">
-        <input type="text" id="ord-search-input" placeholder="🔍 Search Order # or Name..." class="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm font-bold shadow-sm focus:ring-2 focus:ring-blue-500 outline-none transition">
-      </div>
-      <div class="flex items-center justify-between mb-4 px-1">
-        <div class="flex items-center gap-3">
-          <h3 class="font-bold text-slate-700">PENDING</h3>
-          <button onclick="shareSchedule()" class="bg-green-600 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold shadow-md flex items-center gap-1 hover:bg-green-700 active:scale-95 transition"><i data-feather="send" class="w-3 h-3"></i> SEND TO NILESH</button>
-        </div>
-        <div class="flex items-center gap-2">
-          <div class="flex bg-white rounded-lg p-1 border shadow-sm">
-            <button onclick="toggleFilter(true)" id="filter-today" class="px-3 py-1 text-xs font-bold rounded-md text-slate-500">Today <span id="cnt-today" class="ml-0.5 text-[9px] opacity-70"></span></button>
-            <button onclick="toggleFilter(false)" id="filter-all" class="px-3 py-1 text-xs font-bold rounded-md bg-blue-100 text-blue-700">All</button>
-          </div>
-          <button onclick="toggleSort()" id="btn-sort" class="w-8 h-8 rounded-lg bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center shadow-sm active:scale-95 transition"><i data-feather="check-square" class="w-4 h-4"></i></button>
-        </div>
-      </div>
-      <div id="list-orders" class="space-y-4 pb-12"></div>
-    </div>
-  </div>
-
-  <!-- ===== STOCK VIEW ===== -->
-  <div id="view-stock" class="hidden max-w-2xl mx-auto space-y-5">
-    <div class="grid grid-cols-3 gap-3">
-      <div class="bg-indigo-600 text-white p-4 rounded-2xl shadow-lg col-span-1">
-        <div class="text-xs font-bold opacity-70">NET STOCK</div>
-        <div id="stat-stock" class="text-3xl font-black mt-1">0</div>
-        <div class="text-[10px] opacity-60 mt-1">Available</div>
-      </div>
-      <div class="bg-emerald-500 text-white p-4 rounded-2xl shadow-lg col-span-1">
-        <div class="text-xs font-bold opacity-70">TODAY PROD</div>
-        <div id="stat-today-prod" class="text-3xl font-black mt-1">0</div>
-        <div class="text-[10px] opacity-60 mt-1">Produced</div>
-      </div>
-      <div class="bg-orange-500 text-white p-4 rounded-2xl shadow-lg col-span-1">
-        <div class="text-xs font-bold opacity-70">TODAY DEL</div>
-        <div id="stat-today-del" class="text-3xl font-black mt-1">0</div>
-        <div class="text-[10px] opacity-60 mt-1">Delivered</div>
-      </div>
-    </div>
-    <div id="sku-stock-breakdown" class="mt-3 rounded-xl border border-slate-100 p-3 bg-slate-50"></div>
-    <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
-      <div class="flex justify-between items-center mb-2">
-        <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Stock Level</span>
-        <span id="stock-level-label" class="text-xs font-black text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">Checking...</span>
-      </div>
-      <div class="w-full bg-slate-100 rounded-full h-4 overflow-hidden">
-        <div id="stock-bar" class="stock-bar-fill h-full rounded-full bg-emerald-500 w-0"></div>
-      </div>
-      <div class="flex justify-between text-[9px] font-bold text-slate-400 mt-1.5">
-        <span>0</span>
-        <span id="stock-bar-max" class="text-slate-300">Max</span>
-      </div>
-    </div>
-    <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
-      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Add Production</div>
-      <div class="flex gap-2 mb-3">
-        <button onclick="setStockQty(10)" class="flex-1 py-2 bg-slate-100 text-slate-600 rounded-lg font-bold text-sm hover:bg-indigo-50 hover:text-indigo-700 transition">+10</button>
-        <button onclick="setStockQty(20)" class="flex-1 py-2 bg-slate-100 text-slate-600 rounded-lg font-bold text-sm hover:bg-indigo-50 hover:text-indigo-700 transition">+20</button>
-        <button onclick="setStockQty(50)" class="flex-1 py-2 bg-slate-100 text-slate-600 rounded-lg font-bold text-sm hover:bg-indigo-50 hover:text-indigo-700 transition">+50</button>
-        <button onclick="setStockQty(100)" class="flex-1 py-2 bg-slate-100 text-slate-600 rounded-lg font-bold text-sm hover:bg-indigo-50 hover:text-indigo-700 transition">+100</button>
-      </div>
-      <div class="flex gap-3">
-        <input id="prod-val" type="number" placeholder="Custom Qty" class="flex-1 p-3 bg-slate-50 rounded-xl border border-slate-200 font-bold text-lg focus:ring-2 focus:ring-indigo-500 outline-none">
-        <select id="prod-sku" class="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 h-12 focus:ring-2 focus:ring-blue-500 outline-none mb-2">
-          <option value="200ml">💧 200ml Water</option>
-          <option value="500ml">💧 500ml Water</option>
-          <option value="1L">💧 1 Liter Water</option>
-          <option value="cd">🥤 Cold Drink</option>
-        </select>
-        <button onclick="saveStock()" class="bg-slate-900 text-white px-6 rounded-xl font-bold hover:bg-slate-800 active:scale-95 transition">ADD</button>
-      </div>
-    </div>
-    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-      <div class="px-4 py-3 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
-        <span class="text-xs font-bold text-slate-600 uppercase tracking-wider">Recent Activity</span>
-        <span class="text-[10px] text-slate-400">Last 15 entries</span>
-      </div>
-      <div id="list-stock" class="divide-y divide-slate-100"></div>
-    </div>
-  </div>
-
-  <!-- ===== PAYMENTS VIEW ===== -->
-  <div id="view-payments" class="hidden max-w-lg mx-auto">
-    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-      <h3 class="font-bold text-center text-slate-800 mb-6">Record Payment</h3>
-      <form onsubmit="submitPayment(event)" class="space-y-5">
-        <select id="pay-customer" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700" required></select>
-        <div class="relative mt-5">
-          <label class="absolute -top-2 left-3 text-[10px] font-bold bg-white px-1 text-slate-400">DATE</label>
-          <input type="date" id="pay-date" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 outline-none focus:border-blue-500 transition">
-        </div>
-        <div class="relative">
-          <span class="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-slate-400">₹</span>
-          <input type="number" id="pay-amount" placeholder="Amount" class="w-full p-4 pl-8 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xl" required>
-        </div>
-        <button type="submit" class="w-full bg-purple-600 text-white font-bold py-4 rounded-xl shadow-lg">CONFIRM PAYMENT</button>
-      </form>
-    </div>
-    <!-- SMS Bot -->
-    <div class="mt-6 bg-slate-900 rounded-2xl p-4 shadow-lg text-white relative overflow-hidden border border-slate-700">
-      <div class="flex justify-between items-center mb-4">
-        <div><h3 class="font-black text-sm tracking-wider flex items-center gap-2"><i data-feather="cpu" class="text-blue-400"></i> SMS AUTO-BOT</h3><p class="text-[10px] text-slate-400 font-mono">MacroDroid Bridge • 2 msg/min</p></div>
-        <div class="text-right"><div class="text-xs font-bold text-blue-400" id="sms-quota">0/50</div><div class="text-[9px] text-slate-500">DAILY LIMIT</div></div>
-      </div>
-      <div id="sms-status-bar" class="hidden bg-slate-800 rounded-lg p-3 mb-4 border border-slate-700">
-        <div class="flex justify-between text-xs font-bold mb-1"><span class="text-green-400 animate-pulse flex items-center gap-2">● SENDING...</span><span id="sms-timer" class="font-mono text-slate-300">Next: 30s</span></div>
-        <div class="w-full bg-slate-700 h-1.5 rounded-full overflow-hidden mb-2"><div id="sms-progress" class="bg-blue-500 h-full w-0 transition-all duration-1000 ease-linear"></div></div>
-        <div id="sms-console" class="text-[9px] font-mono text-slate-400 h-12 overflow-y-auto leading-tight p-1 bg-black/20 rounded">System Ready...</div>
-      </div>
-      <div class="flex gap-2 mb-3">
-        <button onclick="renderSmsCandidates()" class="flex-1 py-3 bg-slate-700 hover:bg-slate-600 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2"><i data-feather="refresh-cw" class="w-3 h-3"></i> LOAD CANDIDATES</button>
-        <button onclick="startSmsBatch()" id="btn-sms-run" class="flex-1 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold shadow-lg transition flex items-center justify-center gap-2"><i data-feather="play" class="w-3 h-3"></i> START BATCH</button>
-      </div>
-      <div id="sms-candidate-list" class="bg-slate-800 rounded-xl p-2 max-h-48 overflow-y-auto divide-y divide-slate-700/50 hidden"></div>
-    </div>
-    <div class="mt-6">
-      <h4 class="font-bold text-slate-400 text-xs uppercase mb-3 ml-2">Recent Transactions</h4>
-      <div id="list-payments" class="bg-white rounded-2xl shadow-sm border border-slate-200 divide-y divide-slate-100 overflow-hidden"></div>
-    </div>
-  </div>
-
-  <!-- ===== AI / CUSTOMERS VIEW ===== -->
-  <div id="view-customers" class="hidden max-w-2xl mx-auto">
-    <div class="mb-6 bg-white rounded-2xl shadow-lg border border-indigo-100 overflow-hidden flex flex-col h-[500px]">
-      <div class="bg-indigo-600 p-3 text-white flex justify-between items-center shadow-md">
-        <div class="flex items-center gap-2">
-          <div class="bg-white/20 p-1.5 rounded-lg"><i data-feather="cpu" class="w-5 h-5 text-white"></i></div>
-          <div><h3 class="font-bold text-base leading-tight">Anjani AI</h3><p class="text-[10px] text-indigo-100 flex items-center gap-1"><span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span> Online • All Data</p></div>
-        </div>
-        <button onclick="clearHistory()" class="text-xs bg-indigo-700 px-3 py-1 rounded hover:bg-indigo-500 transition">Clear</button>
-      </div>
-      <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50 scroll-smooth">
-        <div class="flex justify-start"><div class="bg-white border border-slate-200 p-3 rounded-xl shadow-sm text-sm text-slate-600 max-w-[85%]">👋 I'm ready. I have read your <b>AI_Brain</b> and <b>Full Database</b>.</div></div>
-      </div>
-      <div class="px-3 pt-2 bg-white border-t border-slate-200">
-        <div class="flex gap-1.5 mb-2 overflow-x-auto no-scrollbar pb-1">
-          <select id="ai-task-type" onchange="applyTaskType()" style="width:32px;min-width:32px;max-width:32px;padding:4px 0px;text-align:center;-webkit-appearance:none;appearance:none;" class="flex-shrink-0 bg-indigo-50 border border-indigo-200 text-indigo-700 text-[10px] font-bold rounded-lg outline-none focus:ring-2 focus:ring-indigo-400 cursor-pointer">
-            <option value="">⚡</option>
-            <optgroup label="📊Reports">
-              <option value="summarize">📋 Summarize Today</option>
-              <option value="dues">💰 Show All Dues</option>
-              <option value="stock">📦 Check Stock</option>
-              <option value="pending">🕐 Pending Orders</option>
-              <option value="revenue">💵 Revenue Report</option>
-            </optgroup>
-            <optgroup label="🔍 Explain">
-              <option value="explain_order">🔍 Explain an Order</option>
-              <option value="explain_customer">👤 Explain Customer</option>
-              <option value="top_customers">🏆 Top Customers</option>
-            </optgroup>
-            <optgroup label="✍️ Actions">
-              <option value="place_order">📦 Place Order</option>
-              <option value="record_payment">💳 Record Payment</option>
-              <option value="add_stock">🏭 Add Stock</option>
-              <option value="add_client">➕ Add New Client</option>
-            </optgroup>
-          </select>
-          <button onclick="quickFill('client')" class="flex-shrink-0 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold px-2 py-1.5 rounded-lg border border-blue-700 transition active:scale-95">+C</button>
-          <button onclick="quickFill('order')" class="flex-shrink-0 bg-slate-800 hover:bg-slate-700 text-white text-[10px] font-bold px-2 py-1.5 rounded-lg border border-slate-700 transition active:scale-95">+O</button>
-          <button onclick="quickFill('payment')" class="flex-shrink-0 bg-purple-600 hover:bg-purple-700 text-white text-[10px] font-bold px-2 py-1.5 rounded-lg border border-purple-700 transition active:scale-95">+P</button>
-          <button onclick="quickSend('today orders')" class="flex-shrink-0 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 text-slate-600 text-[10px] font-bold px-2 py-1.5 rounded-lg border border-slate-200 transition active:scale-95">📅T</button>
-          <button onclick="quickSend('daily summary')" class="flex-shrink-0 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 text-slate-600 text-[10px] font-bold px-2 py-1.5 rounded-lg border border-slate-200 transition active:scale-95">📊SM</button>
-          <button onclick="quickSend('show all dues')" class="flex-shrink-0 bg-red-50 hover:bg-red-100 text-red-600 text-[10px] font-bold px-2 py-1.5 rounded-lg border border-red-100 transition active:scale-95">💰D</button>
-          <button onclick="quickSend('check stock')" class="flex-shrink-0 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-1.5 rounded-lg border border-emerald-100 transition active:scale-95">📦ST</button>
-        </div>
-      </div>
-      <div class="px-3 pb-3 bg-white flex gap-2 items-end">
-        <textarea id="chat-input" placeholder="Message..." class="flex-1 bg-slate-100 border-0 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none resize-none overflow-hidden" rows="1" style="min-height: 36px; max-height: 36px;" oninput="this.style.height = ''; this.style.height = this.scrollHeight + 'px'" onkeydown="if(event.key==='Enter' && !event.shiftKey){ event.preventDefault(); sendChat(); }"></textarea>
-        <button onclick="sendChat()" class="bg-indigo-600 text-white rounded-xl flex items-center justify-center shadow-md active:scale-95 transition" style="height:36px;min-width:36px;width:36px;"><i data-feather="send" class="w-5 h-5 ml-1"></i></button>
-      </div>
-    </div>
-    <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 mb-6 flex justify-between items-center">
-      <h3 class="font-bold text-slate-800 flex items-center gap-2"><i data-feather="users" class="text-blue-500"></i> Clients</h3>
-      <button onclick="openCustForm()" class="bg-slate-900 text-white px-4 py-2 rounded-lg text-xs font-bold">+ NEW</button>
-    </div>
-    <div class="flex gap-2 mb-4">
-      <input type="text" onkeyup="renderCustomers(this.value)" placeholder="Search Name..." class="flex-1 p-3 bg-white border border-slate-200 rounded-xl text-sm">
-      <button onclick="renderCustomers('FLAGGED')" class="bg-red-50 text-red-600 px-4 rounded-xl font-bold text-lg border border-red-100 shadow-sm">🚩</button>
-      <button onclick="startBroadcast()" class="bg-blue-600 text-white px-4 rounded-xl font-bold text-lg border border-blue-800 shadow-sm ml-2 active:scale-95 transition">📢</button>
-    </div>
-    <div id="cust-filter-status" class="hidden text-xs font-bold text-slate-400 mb-2 text-center"></div>
-    <div id="list-customers" class="space-y-3"></div>
-  </div>
-
-  <!-- ===== CUSTOMER DETAIL VIEW ===== -->
-  <div id="view-cust-detail" class="hidden max-w-3xl mx-auto">
-    <button onclick="go('customers')" class="mb-4 flex items-center text-xs font-bold text-slate-500 bg-white px-3 py-2 rounded-lg border border-slate-200 shadow-sm w-fit"><i data-feather="arrow-left" class="w-4 h-4 mr-1"></i> BACK</button>
-    <div id="cust-detail-card" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-6 relative overflow-hidden"></div>
-    <div id="cd-history" class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden divide-y divide-slate-100"></div>
-  </div>
-
-  <!-- ===== LEADS VIEW ===== -->
-  <div id="view-leads" class="hidden pb-20">
-    <div class="bg-white border-b border-slate-200 shadow-sm p-4 sticky top-0 z-20">
-      <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
-        <div class="flex items-center gap-2 shrink-0">
-          <div class="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center"><i data-feather="target" class="w-4 h-4"></i></div>
-          <h2 class="text-lg font-bold text-slate-800 tracking-tight">LEADS</h2>
-          <button onclick="runCombo()" class="ml-4 bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg shadow-md flex items-center gap-2 text-xs font-bold transition"><i data-feather="layers" class="w-3 h-3"></i> COMBO</button>
-        </div>
-        <div class="flex bg-slate-100 rounded-lg p-1">
-          <button onclick="setLeadFilter('ALL')" id="lf-ALL" class="px-3 py-1.5 rounded-md text-xs font-bold transition bg-white text-blue-600 shadow-sm border border-slate-200">ALL</button>
-          <button onclick="setLeadFilter('New')" id="lf-New" class="px-3 py-1.5 rounded-md text-xs font-medium transition text-slate-500 hover:bg-slate-200">NEW</button>
-          <button onclick="setLeadFilter('Sam')" id="lf-Sample" class="px-3 py-1.5 rounded-md text-xs font-medium transition text-slate-500 hover:bg-slate-200">SAM</button>
-          <button onclick="setLeadFilter('Waiting')" id="lf-Waiting" class="px-3 py-1.5 rounded-md text-xs font-medium transition text-slate-500 hover:bg-slate-200">WAIT</button>
-          <button onclick="startLeadOnlyBroadcast()" class="ml-2 px-3 py-1.5 rounded-md text-xs font-bold bg-slate-800 text-white shadow-md hover:bg-slate-700 active:scale-95 transition flex items-center gap-2"><i data-feather="radio" class="w-3 h-3"></i> CAMPAIGN</button>
-        </div>
-      </div>
-      <div class="flex gap-2">
-        <input type="text" id="lead-input" placeholder="Paste Number or Text..." class="flex-1 bg-slate-50 border border-slate-200 text-slate-800 text-sm rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 transition shadow-inner font-medium placeholder:text-slate-400">
-        <button onclick="addLead()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 rounded-lg text-sm shadow-md active:scale-95 transition">SAVE</button>
-        <button onclick="triggerGmailScan()" id="btn-gmail-scan" class="flex items-center gap-1 bg-red-50 text-red-600 border border-red-200 font-bold px-3 rounded-lg text-xs shadow-sm active:scale-95 transition hover:bg-red-100"><i data-feather="mail" class="w-3 h-3"></i> Scan</button>
-      </div>
-      <div class="text-[10px] text-slate-400 text-right mt-1 font-mono">New: <span id="stat-new">0</span> | Sample: <span id="stat-sample">0</span></div>
-    </div>
-    <div id="list-leads" class="divide-y divide-slate-100"></div>
-    <div class="mt-8 text-center"><button onclick="runArchive()" class="text-[10px] font-bold text-slate-400 underline hover:text-slate-600 transition">Archive Leads > 30 Days Old</button></div>
-  </div>
-
-  <!-- ===== SMART ACTIONS VIEW ===== -->
-  <div id="view-smart" class="hidden max-w-2xl mx-auto pb-24">
-    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm mb-4 flex justify-between items-center sticky top-0 z-10">
-      <div><h2 class="text-lg font-black text-slate-800 flex items-center gap-2"><i data-feather="zap" class="w-5 h-5 text-purple-600"></i> Smart Actions</h2><p class="text-slate-400 text-[10px] font-bold mt-0.5 uppercase tracking-wider">Daily Growth Plan</p></div>
-      <div class="flex items-center gap-3">
-        <button onclick="startSmartBroadcast()" class="bg-indigo-600 text-white px-3 py-2 rounded-xl font-bold text-xs shadow-md active:scale-95 transition flex items-center gap-2"><i data-feather="radio" class="w-4 h-4"></i> AUTO RUN</button>
-        <div class="text-right"><div class="text-[9px] font-bold text-slate-400">TODAY</div><div id="smart-date" class="text-base font-black text-slate-800">...</div></div>
-      </div>
-    </div>
-    <div class="bg-white rounded-xl border border-slate-200 shadow-sm mb-6 overflow-hidden">
-      <div class="bg-slate-50 p-4 border-b border-slate-200 flex justify-between items-center">
-        <h3 class="font-black text-slate-700 text-sm uppercase tracking-wide flex items-center gap-2"><i data-feather="briefcase" class="w-4 h-4 text-blue-600"></i> Staff Jobs</h3>
-        <div class="flex bg-white rounded-lg p-1 border border-slate-200 shadow-sm">
-          <button onclick="filterJobs('Active')" id="tab-job-active" class="px-3 py-1 text-[10px] font-bold rounded-md bg-blue-100 text-blue-700 transition">Active</button>
-          <button onclick="filterJobs('Done')" id="tab-job-done" class="px-3 py-1 text-[10px] font-bold rounded-md text-slate-400 hover:bg-slate-50 transition">Done</button>
-        </div>
-      </div>
-      <div id="job-input-area" class="p-4 border-b border-slate-100 flex gap-2">
-        <input id="job-input" type="text" placeholder="New Task..." class="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none transition" onkeypress="if(event.key==='Enter') runJob('CREATE')">
-        <button onclick="runJob('CREATE')" class="bg-blue-600 text-white w-12 rounded-xl flex items-center justify-center shadow-md active:scale-95 transition hover:bg-blue-700"><i data-feather="plus" class="w-5 h-5"></i></button>
-      </div>
-<div id="job-list" class="divide-y divide-slate-100 max-h-[400px] overflow-y-auto min-h-[48px]"></div>
-<div class="p-3 bg-slate-50 border-t border-slate-200 flex gap-2 flex-wrap">
-  <input id="sj-ph" id="sj-ph" value="" style="width:140px;padding:5px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:11px;background:#fff">
-  <button onclick="sjSendWA()" class="flex-1 bg-green-600 text-white rounded-lg text-xs font-bold py-2 flex items-center justify-center gap-1"><i data-feather="message-circle" class="w-3 h-3"></i> WhatsApp</button>
-  <button onclick="sjSendSMS()" class="flex-1 bg-indigo-600 text-white rounded-lg text-xs font-bold py-2 flex items-center justify-center gap-1"><i data-feather="message-square" class="w-3 h-3"></i> SMS</button>
-  <button onclick="sjSendWA();setTimeout(sjSendSMS,800)" class="flex-1 bg-purple-600 text-white rounded-lg text-xs font-bold py-2">⚡ Both</button>
-</div>
-<div id="due-followup-bar" class="hidden p-3 border-t border-orange-100 bg-orange-50">
-  <button onclick="sendAllDueFollowUps()" class="w-full bg-orange-500 text-white rounded-lg text-xs font-bold py-2.5 flex items-center justify-center gap-2 active:scale-95 transition hover:bg-orange-600">
-    <i data-feather="refresh-cw" class="w-3 h-3"></i> Follow Up All Overdue Tasks
-  </button>
-</div>
-    </div>
-    <!-- NILESH BRIEF SECTION -->
-<div class="bg-white rounded-xl border border-slate-200 shadow-sm mb-6 overflow-hidden">
-  <div class="bg-slate-50 p-4 border-b border-slate-200 flex justify-between items-center">
-    <h3 class="font-black text-slate-700 text-sm uppercase tracking-wide flex items-center gap-2"><i data-feather="user" class="w-4 h-4 text-green-600"></i> Nilesh Briefing</h3>
-    <span class="text-[10px] text-slate-400 font-bold" id="nilesh-time"></span>
-  </div>
-  <div class="p-4">
-    <button onclick="sendSmartBrief()" class="w-full bg-slate-900 text-white rounded-xl p-4 text-sm font-bold flex items-center justify-center gap-3 active:scale-95 transition hover:bg-slate-800">
-      <i data-feather="send" class="w-5 h-5"></i>
-      <span id="smart-brief-label">Send Nilesh Brief</span>
-    </button>
-    <div id="smart-brief-hint" class="text-center text-[10px] text-slate-400 font-bold mt-2"></div>
-  </div>
-</div>
-
-<!-- DAILY AUTOMATION SECTION -->
-<div class="bg-white rounded-xl border border-slate-200 shadow-sm mb-6 overflow-hidden">
-  <div class="bg-slate-50 p-4 border-b border-slate-200 flex justify-between items-center">
-    <h3 class="font-black text-slate-700 text-sm uppercase tracking-wide flex items-center gap-2"><i data-feather="clock" class="w-4 h-4 text-purple-600"></i> Daily Automation</h3>
-    <span class="text-[10px] text-purple-600 font-bold bg-purple-50 px-2 py-0.5 rounded-full border border-purple-100">AUTO</span>
-  </div>
-  <div id="daily-status-list" class="divide-y divide-slate-100"></div>
-  <div class="p-3 bg-slate-50 border-t border-slate-100">
-    <p class="text-[10px] text-slate-400 text-center">Checkpoints reset daily at midnight</p>
-  </div>
-</div>
-
-<div id="smart-list" class="space-y-4"></div>
-  </div>
-
-  <!-- ===== DASHBOARD VIEW ===== -->
-  <div id="view-dashboard" class="hidden max-w-7xl mx-auto pb-24">
-    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-      <div><h2 class="text-xl font-black text-slate-800 tracking-tight">Dashboard</h2><p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Overview</p></div>
-      <div class="flex bg-white rounded-xl p-1 shadow-sm border border-slate-200 w-full md:w-fit">
-        <button onclick="setDashPeriod('TODAY')" id="db-TODAY" class="flex-1 md:flex-none px-4 py-2 text-[10px] font-black rounded-lg text-slate-500 hover:bg-slate-50 transition-all">TODAY</button>
-        <button onclick="setDashPeriod('WEEK')" id="db-WEEK" class="flex-1 md:flex-none px-4 py-2 text-[10px] font-black rounded-lg text-slate-500 hover:bg-slate-50 transition-all">WEEK</button>
-        <button onclick="setDashPeriod('MONTH')" id="db-MONTH" class="flex-1 md:flex-none px-4 py-2 text-[10px] font-black rounded-lg bg-slate-900 text-white transition-all">MONTH</button>
-      </div>
-    </div>
-    <div id="stock-alert-container" class="hidden mb-4"></div>
-    <section class="grid grid-cols-2 xl:grid-cols-3 gap-3 mb-6" id="kpi-grid"></section>
-    <section class="grid grid-cols-1 xl:grid-cols-12 gap-6">
-      <div class="xl:col-span-5 space-y-6">
-        <div class="bg-white rounded-3xl p-6 text-slate-800 border border-slate-200 shadow-sm relative overflow-hidden">
-          <div class="relative z-10">
-            <h3 class="text-[10px] font-bold text-blue-400 uppercase tracking-widest mb-4">Daily Stock Flow</h3>
-            <div class="flex justify-between items-end border-b border-slate-100 pb-6 mb-4">
-              <div><div class="text-[9px] font-bold text-slate-400 uppercase">Net</div><div id="dash-stk-open" class="text-2xl font-black text-slate-700">0</div></div>
-              <div class="text-slate-300 text-xl">→</div>
-              <div><div class="text-[9px] font-bold text-blue-400 uppercase">Prod</div><div id="dash-stk-prod" class="text-2xl font-black text-blue-600">0</div></div>
-              <div class="text-slate-300 text-xl">→</div>
-              <div><div class="text-[9px] font-bold text-emerald-400 uppercase">Deliv</div><div id="dash-stk-del" class="text-2xl font-black text-emerald-600">0</div></div>
-            </div>
-            <div id="dash-sku-breakdown" class="mb-3"></div>
-            <div class="flex justify-between items-center">
-              <span class="text-[10px] font-bold text-slate-400">Inventory Status</span>
-              <span id="dash-stk-status" class="px-3 py-1 bg-slate-100 text-slate-400 rounded-full text-[10px] font-black uppercase tracking-tighter border border-slate-200">Checking...</span>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="xl:col-span-7 bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-        <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-          <h3 class="font-black text-xs text-slate-700 uppercase tracking-wider">Pending Dues</h3>
-          <span class="text-[9px] font-bold text-slate-400">Top 20</span>
-        </div>
-        <div id="dash-drilldown" class="divide-y divide-slate-100 min-h-[300px]"></div>
-      </div>
-    </section>
-  </div>
+<main class="main-content flex-1 h-full overflow-y-auto no-scrollbar pt-20 lg:pt-8 pb-32 lg:pb-8 px-4 lg:px-8">
+  <div id="view-orders">...</div>
+  <div id="view-stock" class="hidden">...</div>
+  <div id="view-payments" class="hidden">...</div>
+  <div id="view-customers" class="hidden">...</div>
+  <div id="view-cust-detail" class="hidden">...</div>
+  <div id="view-leads" class="hidden">...</div>
+  <div id="view-smart" class="hidden">...</div>
+  <div id="view-dashboard" class="hidden">...</div>
 </main>
 
-<!-- ===== MOBILE NAV ===== -->
-<nav class="lg:hidden fixed bottom-0 w-full flex justify-around items-center h-20 pb-safe z-40" style="background:rgba(240,249,255,0.97);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:1px solid rgba(14,165,233,0.15);box-shadow:0 -4px 24px rgba(14,165,233,0.1)">
-  <button onclick="go('orders')" id="m-btn-orders" class="mob-item active flex flex-col items-center justify-center w-12 h-full gap-1"><i data-feather="shopping-cart" class="w-5 h-5"></i><span class="text-[9px] font-medium">Orders</span></button>
-  <button onclick="go('payments')" id="m-btn-payments" class="mob-item flex flex-col items-center justify-center w-12 h-full gap-1"><i data-feather="credit-card" class="w-5 h-5"></i><span class="text-[9px] font-medium">Pay</span></button>
-  <button onclick="go('customers')" id="m-btn-customers" class="mob-item flex flex-col items-center justify-center w-12 h-full gap-1"><i data-feather="users" class="w-5 h-5"></i><span class="text-[9px] font-medium">AI</span></button>
-  <button onclick="go('leads')" id="m-btn-leads" class="mob-item flex flex-col items-center justify-center w-12 h-full gap-1"><i data-feather="target" class="w-5 h-5"></i><span class="text-[9px] font-medium">Leads</span></button>
-  <button onclick="go('stock')" id="m-btn-stock" class="mob-item flex flex-col items-center justify-center w-12 h-full gap-1"><i data-feather="package" class="w-5 h-5"></i><span class="text-[9px] font-medium">Stock</span></button>
-  <button onclick="go('smart')" id="m-btn-smart" class="mob-item flex flex-col items-center justify-center w-12 h-full gap-1 text-purple-600 relative"><i data-feather="zap" class="w-5 h-5"></i><span class="text-[9px] font-medium">Smart</span><span id="smart-badge-mob" class="hidden absolute top-1 right-0.5 bg-orange-500 text-white text-[8px] font-black px-1 py-0.5 rounded-full min-w-[14px] text-center leading-none"></span></button>
-  <button onclick="go('dashboard')" id="m-btn-dashboard" class="mob-item flex flex-col items-center justify-center w-12 h-full gap-1"><i data-feather="grid" class="w-5 h-5"></i><span class="text-[9px] font-medium">Dash</span></button>
+<nav class="lg:hidden fixed bottom-0 w-full flex justify-around items-stretch h-20 z-[100] bg-white/95 backdrop-blur-xl border-t border-sky-100 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+  <button onclick="go('orders')" id="m-btn-orders" class="mob-item active flex-1 pb-safe flex flex-col items-center justify-center gap-1"><i data-feather="shopping-cart" class="w-5 h-5"></i><span class="text-[9px] font-bold">Orders</span></button>
+  <button onclick="go('payments')" id="m-btn-payments" class="mob-item flex-1 pb-safe flex flex-col items-center justify-center gap-1"><i data-feather="credit-card" class="w-5 h-5"></i><span class="text-[9px] font-bold">Pay</span></button>
+  <button onclick="go('customers')" id="m-btn-customers" class="mob-item flex-1 pb-safe flex flex-col items-center justify-center gap-1"><i data-feather="users" class="w-5 h-5"></i><span class="text-[9px] font-bold">AI</span></button>
+  <button onclick="go('leads')" id="m-btn-leads" class="mob-item flex-1 pb-safe flex flex-col items-center justify-center gap-1"><i data-feather="target" class="w-5 h-5"></i><span class="text-[9px] font-bold">Leads</span></button>
+  <button onclick="go('stock')" id="m-btn-stock" class="mob-item flex-1 pb-safe flex flex-col items-center justify-center gap-1"><i data-feather="package" class="w-5 h-5"></i><span class="text-[9px] font-bold">Stock</span></button>
+  <button onclick="go('smart')" id="m-btn-smart" class="mob-item flex-1 pb-safe flex flex-col items-center justify-center gap-1 text-purple-600 relative"><i data-feather="zap" class="w-5 h-5"></i><span class="text-[9px] font-bold">Smart</span><span id="smart-badge-mob" class="hidden absolute top-2 right-2 bg-orange-500 text-white text-[8px] px-1 rounded-full"></span></button>
+  <button onclick="go('dashboard')" id="m-btn-dashboard" class="mob-item flex-1 pb-safe flex flex-col items-center justify-center gap-1"><i data-feather="grid" class="w-5 h-5"></i><span class="text-[9px] font-bold">Dash</span></button>
 </nav>
 
-<!-- ===== MODALS ===== -->
-<div id="modal-pay" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm">
-  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
-    <div class="bg-purple-600 p-4 text-white text-center"><div class="font-bold text-lg tracking-wide">CONFIRM PAYMENT</div></div>
-    <div class="p-6 text-center">
-      <div class="text-xs font-bold text-slate-400 uppercase mb-1">RECORDING PAYMENT FOR</div>
-      <div id="conf-pay-name" class="text-xl font-black text-slate-800 mb-4">...</div>
-      <div class="inline-block bg-purple-50 rounded-xl p-3 border border-purple-100 mb-6">
-        <div class="text-[10px] font-bold text-purple-400 uppercase">AMOUNT</div>
-        <div id="conf-pay-amt" class="text-3xl font-black text-purple-600">₹0</div>
-      </div>
-<div id="conf-offline-note" style="display:none" class="mb-3 text-xs font-bold text-amber-600 bg-amber-50 px-3 py-2 rounded-lg border border-amber-200 text-center">📴 Offline — payment will sync when you reconnect</div>
-      <div class="grid grid-cols-2 gap-3">
-        <button onclick="document.getElementById('modal-pay').classList.add('hidden')" class="py-3 bg-slate-100 text-slate-600 font-bold rounded-xl text-sm">CANCEL</button>
-        <button onclick="executePayment()" class="py-3 text-white font-bold rounded-xl text-sm active:scale-95 transition" style="background:linear-gradient(135deg,#7c3aed,#a855f7);box-shadow:0 4px 14px rgba(168,85,247,0.35)">YES, SAVE</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div id="modal-cust" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm">
-  <div class="bg-white p-6 rounded-2xl w-full max-w-md shadow-2xl">
-    <h3 id="modal-title" class="font-bold text-lg mb-4">Edit Customer</h3>
-    <form onsubmit="saveClient(event)" class="space-y-4">
-      <input type="hidden" id="new-id">
-      <div class="grid grid-cols-2 gap-4">
-        <input id="new-name" placeholder="Name" class="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 text-sm font-bold" required>
-        <input id="new-mob" type="tel" placeholder="Mobile" class="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 text-sm font-bold" required>
-      </div>
-      <input id="new-map" placeholder="Map Link" class="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 text-sm">
-      <input id="new-rate" type="number" placeholder="Rate" class="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 text-sm">
-      <div class="flex gap-3 pt-2">
-        <button type="button" onclick="document.getElementById('modal-cust').classList.add('hidden')" class="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl text-sm">CANCEL</button>
-        <button type="submit" class="flex-1 py-3 bg-slate-900 text-white font-bold rounded-xl text-sm">SAVE</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<div id="note-modal" class="fixed inset-0 bg-black/60 z-[60] hidden flex items-center justify-center p-4 backdrop-blur-sm">
-  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
-    <div class="bg-amber-50 p-4 border-b border-amber-100 flex justify-between items-center">
-      <div class="font-bold text-amber-800 flex items-center gap-2"><i data-feather="edit-3" class="w-4 h-4"></i> LEAD NOTES</div>
-      <button onclick="document.getElementById('note-modal').classList.add('hidden')" class="text-amber-800"><i data-feather="x" class="w-4 h-4"></i></button>
-    </div>
-    <div class="p-4">
-      <textarea id="note-input" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-medium focus:ring-2 focus:ring-amber-500 outline-none h-32 resize-none" placeholder="Enter details..."></textarea>
-      <input type="hidden" id="note-lead-id">
-      <button onclick="saveNote()" class="mt-4 w-full py-3 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl text-sm shadow-md">SAVE NOTE</button>
-    </div>
-  </div>
-</div>
-
-<div id="modal-loc-edit" class="fixed inset-0 bg-black/60 z-[9000] hidden flex items-center justify-center p-4 backdrop-blur-sm">
-  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
-    <div class="bg-slate-50 p-4 border-b border-slate-100 flex justify-between items-center">
-      <h3 class="font-bold text-slate-800 flex items-center gap-2"><i data-feather="map-pin" class="w-4 h-4 text-orange-500"></i> UPDATE LOCATION</h3>
-      <button onclick="document.getElementById('modal-loc-edit').classList.add('hidden')" class="text-slate-400 hover:text-slate-600"><i data-feather="x" class="w-5 h-5"></i></button>
-    </div>
-    <div class="p-5">
-      <div class="text-[10px] font-bold text-slate-400 uppercase mb-1">Current Address</div>
-      <div id="loc-edit-old" class="text-xs font-medium text-slate-600 bg-slate-50 p-2 rounded-lg border border-slate-100 mb-4 break-words">...</div>
-      <div class="text-[10px] font-bold text-slate-400 uppercase mb-1">New Location Search</div>
-      <div class="relative">
-        <input id="loc-edit-input" type="text" placeholder="Search Google Maps..." class="w-full p-3 pl-9 bg-white border border-slate-300 rounded-xl text-sm font-bold focus:ring-2 focus:ring-orange-500 outline-none transition shadow-sm">
-        <i data-feather="search" class="absolute left-3 top-3.5 w-4 h-4 text-slate-400"></i>
-      </div>
-      <input type="hidden" id="loc-edit-link">
-      <input type="hidden" id="loc-edit-id">
-      <div class="grid grid-cols-2 gap-3 mt-6">
-        <button onclick="document.getElementById('modal-loc-edit').classList.add('hidden')" class="py-3 bg-slate-100 text-slate-600 font-bold rounded-xl text-xs">CANCEL</button>
-        <button onclick="submitLocationUpdate()" id="btn-loc-update" class="py-3 bg-slate-900 text-white font-bold rounded-xl text-xs shadow-lg active:scale-95 transition">UPDATE</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ===== LOGIN SCREEN ===== -->
-<div id="login-screen" class="fixed inset-0 z-[10000] flex flex-col items-center justify-center text-center" style="background:linear-gradient(160deg,#0c4a6e 0%,#0369a1 50%,#0ea5e9 100%)">
-  <div class="p-8 rounded-3xl w-80" id="login-card" style="background:rgba(255,255,255,0.95);backdrop-filter:blur(20px);box-shadow:0 20px 60px rgba(12,74,110,0.3),0 0 0 1px rgba(255,255,255,0.5)">
-    <div class="mb-6"><div class="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto shadow-lg"><span class="text-3xl">💧</span></div></div>
-    <h2 class="text-2xl font-bold text-slate-800 mb-1">Anjani Water</h2>
-    <p class="text-slate-500 text-sm mb-6">Sign in to access dashboard</p>
-
-    <!-- Google Sign-In -->
-    <button id="btn-google-login" onclick="handleGoogleLogin()"
-      class="w-full flex items-center justify-center gap-3 bg-white border-2 border-slate-200 text-slate-700 font-bold text-sm py-3 rounded-xl shadow-md active:scale-95 transition-transform mb-4 hover:border-blue-400 hover:shadow-lg">
-      <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.08 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-3.59-13.46-8.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
-      Sign in with Google
-    </button>
-
-    <!-- Divider -->
-    <div class="flex items-center gap-3 mb-4">
-      <div class="flex-1 h-px bg-slate-200"></div>
-      <span class="text-xs text-slate-400 font-medium">or use PIN</span>
-      <div class="flex-1 h-px bg-slate-200"></div>
-    </div>
-
-    <!-- PIN login -->
-    <input type="text" id="pin-input" maxlength="4" inputmode="numeric" placeholder="0000" autocomplete="off"
-      class="w-full text-center text-4xl font-black tracking-[0.5em] border-b-4 border-slate-200 focus:border-blue-600 rounded-none py-4 mb-4 focus:outline-none transition-all text-slate-800 placeholder-slate-200"
-      onkeypress="if(event.key==='Enter') handleLogin()">
-    <button id="btn-login" onclick="handleLogin()" class="w-full bg-slate-900 text-white font-bold text-lg py-3 rounded-xl shadow-lg active:scale-95 transition-transform">VERIFY PIN 🔒</button>
-    <p id="pin-error" class="mt-3 text-red-500 text-xs font-bold h-5 opacity-0 transition-opacity">⛔ INCORRECT PIN</p>
-    <p id="google-error" class="mt-1 text-red-500 text-xs font-bold h-5 opacity-0 transition-opacity">⛔ GOOGLE SIGN-IN FAILED</p>
-  </div>
-</div>
-
-<!-- ===== REFRESH BUTTON ===== -->
-<button onclick="forceRefresh()" class="fixed bottom-24 right-4 md:bottom-8 md:right-8 w-12 h-12 rounded-full shadow-xl flex items-center justify-center z-50 active:scale-90 transition-transform group" style="background:linear-gradient(135deg,#0369a1,#0ea5e9);box-shadow:0 4px 20px rgba(14,165,233,0.4);border:1px solid rgba(255,255,255,0.2)">
-  <i data-feather="refresh-cw" class="w-5 h-5 group-hover:animate-spin"></i>
+<button onclick="forceRefresh()" class="fixed bottom-28 right-4 md:bottom-8 md:right-8 w-12 h-12 rounded-full shadow-xl flex items-center justify-center z-[90] bg-sky-600 text-white border border-white/20 active:scale-90 transition">
+  <i data-feather="refresh-cw" class="w-5 h-5"></i>
 </button>
 
-<!-- ===================== CONFIG ===================== -->
-<script>
-  window.MAPS_API_KEY = 'AIzaSyAaHPW3ZuHvvVIlEa5mK9OOcE5KAo4dp50';
-</script>
-<!-- Firebase API Bridge — replaces Google Apps Script JSONP -->
+<div id="login-screen" class="fixed inset-0 z-[10000] flex flex-col items-center justify-center bg-sky-900">
+  </div>
+
+<script>window.MAPS_API_KEY = 'YOUR_KEY';</script>
 <script type="module" src="firebase-api.js"></script>
-<!-- ===================== SERVICE WORKER REGISTRATION ===================== -->
-<script>
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js')
-      .then(reg => console.log('SW registered:', reg.scope))
-      .catch(err => console.log('SW failed:', err));
-  });
-}
-</script>
-
-<!-- ===================== MAIN APP JAVASCRIPT ===================== -->
 <script type="module" src="src/app.js"></script>
-<!-- Maps API — loaded last -->
-<script>
-window.addEventListener('load', function() {
-  if (typeof initMap !== 'function') window.initMap = function() {};
-  const s = document.createElement('script');
-  s.src = 'https://maps.googleapis.com/maps/api/js?key=' + window.MAPS_API_KEY + '&libraries=places&callback=initMap';
-  s.async = true; s.defer = true;
-  document.body.appendChild(s);
-});
-</script>
-<!-- ═══════════════════════════════════════════════════════════
-     CAPACITOR NATIVE BRIDGE
-     Add this block just before </body> in www/index.html
-     Safe for web too — detects if running inside APK or browser
-     ═══════════════════════════════════════════════════════════ -->
-<script type="module">
-  // Capacitor is only available inside the APK (Android WebView)
-  // On browser/GitHub Pages this block safely does nothing
-
-  const isNative = () => window.Capacitor && window.Capacitor.isNativePlatform();
-
-  // ── Camera: take photo or pick from gallery ──────────────────
-  window.anjaniCamera = {
-    async takePhoto() {
-      if (!isNative()) {
-        // Fallback: use browser file input on web
-        return new Promise((resolve) => {
-          const input = document.createElement('input');
-          input.type = 'file'; input.accept = 'image/*'; input.capture = 'environment';
-          input.onchange = e => resolve(URL.createObjectURL(e.target.files[0]));
-          input.click();
-        });
-      }
-      const { Camera, CameraResultType, CameraSource } = await import(
-        '/node_modules/@capacitor/camera/dist/esm/index.js'
-      );
-      const photo = await Camera.getPhoto({
-        quality: 80,
-        allowEditing: false,
-        resultType: CameraResultType.DataUrl,
-        source: CameraSource.Camera
-      });
-      return photo.dataUrl;   // base64 data URL — use as <img src>
-    },
-
-    async pickFromGallery() {
-      if (!isNative()) {
-        return new Promise((resolve) => {
-          const input = document.createElement('input');
-          input.type = 'file'; input.accept = 'image/*';
-          input.onchange = e => resolve(URL.createObjectURL(e.target.files[0]));
-          input.click();
-        });
-      }
-      const { Camera, CameraResultType, CameraSource } = await import(
-        '/node_modules/@capacitor/camera/dist/esm/index.js'
-      );
-      const photo = await Camera.getPhoto({
-        quality: 80,
-        allowEditing: false,
-        resultType: CameraResultType.DataUrl,
-        source: CameraSource.Photos
-      });
-      return photo.dataUrl;
-    }
-  };
-
-  // ── Usage example (call from anywhere in your app) ───────────
-  // const imgSrc = await window.anjaniCamera.takePhoto();
-  // document.getElementById('preview').src = imgSrc;
-
-  console.log('[Anjani] Native bridge loaded. isNative:', isNative());
-</script>
-<!-- ═══════════════════════════════════════════════════════════ -->
-
 </body>
 </html>
