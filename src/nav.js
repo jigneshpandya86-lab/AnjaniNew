@@ -1,122 +1,93 @@
 import { DB } from './state.js';
 import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
+
 export async function loadData() {
-  const log = document.getElementById('debug-log');
-  const CACHE_KEY = 'anjani_db_v2'; 
+  return new Promise(async (resolve) => {
+    const log = document.getElementById('debug-log');
+    const CACHE_KEY = 'anjani_db_v2'; 
 
-  window.DB = DB;
-  window._loadData = loadData;
+    window.DB = DB;
+    window._loadData = loadData;
 
-  const loader = document.getElementById('loader');
-  const connText = document.getElementById('conn-text');
+    const loader = document.getElementById('loader');
+    const connText = document.getElementById('conn-text');
 
-  // ======================================================================
-  // STEP 1: INSTANT CACHE LOAD (0.0 SECONDS)
-  // ======================================================================
-  const cached = window.AnjaniCache ? await window.AnjaniCache.get(CACHE_KEY) : null;
-  
-  if (cached) {
-    // 1A. Instantly inject memory
-    DB.customers = cached.customers || []; 
-    DB.orders    = cached.orders || [];
-    DB.payments  = cached.payments || []; 
-    DB.stock     = cached.stock || [];
-    DB.jobs      = cached.jobs || []; 
-    DB.smartMsgs = cached.smartMsgs || {}; 
-    DB.leads     = cached.leads || [];
+    // ======================================================================
+    // STEP 1: INSTANT CACHE LOAD (0.0 SECONDS)
+    // ======================================================================
+    const cached = window.AnjaniCache ? await window.AnjaniCache.get(CACHE_KEY) : null;
+    let isCached = false;
     
-    // 1B. Draw the screen immediately
-    if (typeof window._render === 'function') window._render();
-    if (typeof window._renderLeads === 'function') window._renderLeads();
-    if (typeof window._renderDashboard === 'function') window._renderDashboard();
-    
-    // 1C. Kill the loading spinner immediately
-    if (loader) loader.classList.add('hidden'); 
-    if (connText) {
-      connText.innerText = 'Syncing in background...';
-      connText.classList.add('animate-pulse'); // Add a subtle pulse while syncing
-    }
-  } else {
-    // ONLY show the loading spinner if they have literally never opened the app before
-    if (loader) loader.classList.remove('hidden');
-    if (connText) connText.innerText = 'First time setup, downloading...';
-  }
-
-  // Stop here if the user's phone is completely disconnected from the internet
-  if (!navigator.onLine) {
-    if (connText) {
-      connText.innerText = 'Offline — Using cached data';
-      connText.classList.remove('animate-pulse');
-    }
-    return; 
-  }
-
-  // ======================================================================
-  // STEP 2: SILENT BACKGROUND SYNC (FIREBASE)
-  // ======================================================================
-  if (typeof window.setupRealtime === 'function') {
-    window.setupRealtime(async function(eventName) {
-      if (eventName === '__initial_load_complete__') {
-        if (loader) loader.classList.add('hidden'); 
-        if (connText) {
-          connText.innerText = 'Live — ' + new Date().toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'});
-          connText.classList.remove('animate-pulse');
-        }
-      }
-
-      // Silently update the screen with the fresh Firebase data
+    if (cached && Object.keys(cached).length > 0) {
+      isCached = true;
+      // 1A. Instantly inject memory
+      DB.customers = cached.customers || []; 
+      DB.orders    = cached.orders || [];
+      DB.payments  = cached.payments || []; 
+      DB.stock     = cached.stock || [];
+      DB.jobs      = cached.jobs || []; 
+      DB.smartMsgs = cached.smartMsgs || {}; 
+      DB.leads     = cached.leads || [];
+      
+      // 1B. Draw the screen immediately
       if (typeof window._render === 'function') window._render();
       if (typeof window._renderLeads === 'function') window._renderLeads();
       if (typeof window._renderDashboard === 'function') window._renderDashboard();
-
-      // Save the fresh data to cache so it's ready for the next instant load
-      if (window.AnjaniCache) {
-        await window.AnjaniCache.set(CACHE_KEY, {
-          customers: DB.customers, orders: DB.orders, payments: DB.payments,
-          stock: DB.stock, jobs: DB.jobs, smartMsgs: DB.smartMsgs, leads: DB.leads,
-        });
+      
+      if (connText) {
+        connText.innerText = 'Syncing in background...';
+        connText.classList.add('animate-pulse'); 
       }
-    });
-  } else {
-    // Firebase Bridge Adapter (For getInitialData)
-    google.script.run.withSuccessHandler(async function(res) {
-      try {
-        const parsed = JSON.parse(res);
-        if (parsed.error) throw new Error(parsed.error);
-        
-        DB.customers = parsed.customers || []; DB.orders = parsed.orders || [];
-        DB.payments  = parsed.payments || [];  DB.stock = parsed.stock || [];
-        DB.jobs      = parsed.jobs || [];      DB.smartMsgs = parsed.smartMsgs || {}; 
-        DB.leads     = parsed.leads || [];
-        
-        if (typeof window._render === 'function') window._render();
-        if (typeof window._renderDashboard === 'function') window._renderDashboard();
-        if (typeof window._renderLeads === 'function') window._renderLeads();
-        
-        if (loader) loader.classList.add('hidden');
-        if (connText) {
-          connText.innerText = 'Live — ' + new Date().toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'});
-          connText.classList.remove('animate-pulse');
+      
+      // Since data is loaded from cache, we can resolve the promise immediately to unlock the screen.
+      resolve(true);
+    } else {
+      if (connText) connText.innerText = 'First time setup, downloading...';
+    }
+
+    // Stop here if the user's phone is completely disconnected from the internet
+    if (!navigator.onLine) {
+      if (connText) {
+        connText.innerText = 'Offline — Using cached data';
+        connText.classList.remove('animate-pulse');
+      }
+      resolve(true); 
+      return; 
+    }
+
+    // ======================================================================
+    // STEP 2: SILENT BACKGROUND SYNC (FIREBASE)
+    // ======================================================================
+    if (typeof window.setupRealtime === 'function') {
+      window.setupRealtime(async function(eventName) {
+        if (eventName === '__initial_load_complete__') {
+          if (connText) {
+            connText.innerText = 'Live — ' + new Date().toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'});
+            connText.classList.remove('animate-pulse');
+          }
+          // If the app started WITHOUT cache, we resolve here once Firebase sends the initial payload.
+          if (!isCached) resolve(true);
         }
 
+        // Silently update the screen with the fresh Firebase data
+        if (typeof window._render === 'function') window._render();
+        if (typeof window._renderLeads === 'function') window._renderLeads();
+        if (typeof window._renderDashboard === 'function') window._renderDashboard();
+
+        // Save the fresh data to cache so it's ready for the next instant load
         if (window.AnjaniCache) {
           await window.AnjaniCache.set(CACHE_KEY, {
             customers: DB.customers, orders: DB.orders, payments: DB.payments,
             stock: DB.stock, jobs: DB.jobs, smartMsgs: DB.smartMsgs, leads: DB.leads,
           });
         }
-      } catch(e) {
-        if (log) { log.innerText = 'DATA: ' + e.message; log.classList.remove('hidden'); }
-      }
-    }).withFailureHandler(function(e) {
-      console.error('[Firebase] Load failed:', e.message);
-      if (connText) {
-        connText.innerText = 'Sync failed — using cached data';
-        connText.classList.remove('animate-pulse');
-      }
-      if (loader) loader.classList.add('hidden');
-    }).getInitialData();
-  }
+      });
+    } else {
+        // Fail-safe resolution in case setupRealtime isn't loaded yet.
+        console.warn("setupRealtime not found.");
+        resolve(true);
+    }
+  });
 }
 
 // ======================================================================
@@ -156,9 +127,6 @@ export function go(pageId) {
 window.go = go;
 
 // ======================================================================
-// LOGIN HANDLER
-// ======================================================================
-// ======================================================================
 // LOGIN HANDLER (PIN -> FIREBASE BRIDGE)
 // ======================================================================
 export async function handleLogin(e) {
@@ -181,6 +149,9 @@ export async function handleLogin(e) {
       // 1. Secretly log into Firebase in the background
       const auth = getAuth();
       await signInWithEmailAndPassword(auth, "admin@anjaniwater.in", "Anjani@2026");
+      
+      // Save session
+      localStorage.setItem('anjani_session', 'active');
 
       // 2. Hide the login screen
       const loginScreen = document.getElementById('login-screen') || document.getElementById('page-login');
@@ -190,16 +161,16 @@ export async function handleLogin(e) {
       const appLayout = document.getElementById('app-layout') || document.querySelector('.flex.h-screen');
       if (appLayout) appLayout.classList.remove('hidden');
 
-      // 4. Trigger the instant data load we just built
-      if (typeof window._loadData === 'function') {
-        window._loadData();
-      } else if (typeof loadData === 'function') {
-        loadData(); // Fallback if called directly from this file
-      }
-
-      // 5. Send the user to the dashboard
+      // 4. Send the user to the dashboard
       if (typeof window.go === 'function') {
         window.go('dashboard');
+      }
+
+      // 5. Trigger the instant data load 
+      if (typeof window._loadData === 'function') {
+        await window._loadData();
+      } else if (typeof loadData === 'function') {
+        await loadData(); // Fallback if called directly from this file
       }
 
     } catch (error) {
@@ -229,12 +200,7 @@ window.handleLogin = handleLogin;
 // APP INITIALIZATION
 // ======================================================================
 export function initApp() {
-  // Trigger the initial data load when the app starts
-  if (typeof window._loadData === 'function') {
-    window._loadData();
-  } else if (typeof loadData === 'function') {
-    loadData();
-  }
+   // Empty because we handle startup logic in app.js now.
 }
 
 // Expose it globally just in case HTML buttons or other scripts need it
