@@ -202,4 +202,46 @@ window.addEventListener('online',  () => { updateOnlineStatus(); drainActionQueu
 window.addEventListener('offline', () => { updateOnlineStatus(); showOfflineToast(); });
 
 // ── Boot ─────────────────────────────────────────────────────
-window.addEventListener('DOMContentLoaded', initApp);
+// ── Boot with Data Gate & Safe Timeout ───────────────────────
+async function startApp() {
+  const loader = document.getElementById('loader');
+  const debugLog = document.getElementById('debug-log');
+  const loginScreen = document.getElementById('login-screen');
+
+  try {
+    // 1. Safe Timeout: Create a 5-second stopwatch
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Network Timeout")), 5000)
+    );
+
+    // 2. Race Firebase Download against the 5-second stopwatch
+    if (typeof window._loadData === 'function') {
+      await Promise.race([window._loadData(), timeoutPromise]);
+      console.log("✅ Data successfully downloaded from Cloud.");
+    }
+  } catch (err) {
+    // If it takes longer than 5s, or offline, we fallback to local cache
+    console.warn("⏳ Offline or Timeout. Booting from local cache...");
+    if (debugLog) {
+      debugLog.innerText = "Network slow. Using offline cache...";
+      setTimeout(() => debugLog.classList.add('hidden'), 2000); // Hide warning after 2s
+    }
+  }
+
+  // 3. Run your standard initialization (renders UI, etc.)
+  if (typeof initApp === 'function') initApp();
+
+  // 4. Check PIN status to decide what vanishes
+  const session = localStorage.getItem('anjani_session');
+  if (session) {
+     // User is logged in: Hide Splash Screen, reveal live Dashboard
+     if (loader) loader.classList.add('hidden');
+  } else {
+     // User needs PIN: Show Login Screen, Hide Splash Screen
+     if (loginScreen) loginScreen.classList.remove('hidden');
+     if (loader) loader.classList.add('hidden');
+  }
+}
+
+// Start the sequence when the HTML is ready
+window.addEventListener('DOMContentLoaded', startApp);
