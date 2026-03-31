@@ -204,16 +204,25 @@ window.addEventListener('offline', () => { updateOnlineStatus(); showOfflineToas
 // ── Boot ─────────────────────────────────────────────────────
 // ── Boot Sequence with Data Gate & Safe Timeout ──────────────
 // ── Boot Sequence with Data Gate & Safe Timeout ──────────────
+// ── Boot Sequence with Data Gate & Safe Timeout ──────────────
 async function startApp() {
   const loader = document.getElementById('loader');
   const debugLog = document.getElementById('debug-log');
   const loginScreen = document.getElementById('login-screen');
 
-  // 1. Check if the user is already logged in FIRST
   const session = localStorage.getItem('anjani_session');
 
   if (session) {
-    // 🟢 LOGGED IN: Run the Data Gate to fetch fresh data
+    // 🟢 LOGGED IN: Wait for Firebase Auth to "Wake Up" first!
+    const auth = getAuth();
+    await new Promise((resolve) => {
+      const unsubscribe = onAuthStateChanged(auth, (user) => {
+        resolve(); // Firebase is awake!
+        unsubscribe(); // Stop listening
+      });
+    });
+
+    // NOW run the Data Gate
     try {
       const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error("Network Timeout")), 5000)
@@ -238,7 +247,7 @@ async function startApp() {
     if (loader) loader.classList.add('hidden');
 
   } else {
-    // 🔴 NOT LOGGED IN: Skip data fetch, go straight to PIN screen
+    // 🔴 NOT LOGGED IN: Show Login Screen, Hide Splash Screen
     if (loginScreen) loginScreen.classList.remove('hidden');
     if (loader) loader.classList.add('hidden');
   }
@@ -247,5 +256,4 @@ async function startApp() {
   if (typeof initApp === 'function') initApp();
 }
 
-// Fire the engine when the HTML loads
 window.addEventListener('DOMContentLoaded', startApp);
