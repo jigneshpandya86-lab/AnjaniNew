@@ -43,26 +43,14 @@
       --amz-bar:       #232f3e;
       --amz-orange:    #ff9900;
       --amz-orange-lt: #febd69;
-      --amz-link:      #007185;
       --amz-bg:        #eaeded;
       --amz-white:     #ffffff;
       --amz-border:    #dddddd;
       --amz-text:      #0f1111;
       --amz-muted:     #565959;
-      --amz-green:     #007600;
       --amz-red:       #b12704;
-      --nav-height:    4rem;
+      --nav-height:    5rem; /* matches original h-20 = 80px */
     }
-
-    /* ── Body ──────────────────────────────────────────────── */
-    body {
-      font-family: Arial, sans-serif;
-      background: var(--amz-bg);
-      color: var(--amz-text);
-      -webkit-tap-highlight-color: transparent;
-      overscroll-behavior: none;
-    }
-    .no-scrollbar::-webkit-scrollbar { display: none; }
 
     /* ── Google Places dropdown ────────────────────────────── */
     .pac-container {
@@ -71,44 +59,31 @@
       box-shadow: 0 4px 16px rgba(0,0,0,0.2);
     }
 
-    /* ══════════════════════════════════════════════════════════
-       DESKTOP SIDEBAR
-    ══════════════════════════════════════════════════════════ */
-    .amz-sidebar {
-      width: 210px;
-      background: var(--amz-navy);
-      color: #fff;
-      flex-shrink: 0;
+    /* ── Body ──────────────────────────────────────────────── */
+    body {
+      font-family: Arial, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      background: var(--amz-bg);
+      color: var(--amz-text);
+      overscroll-behavior: none;
     }
-    .sidebar-logo {
-      background: var(--amz-navy);
-      border-bottom: 2px solid var(--amz-orange);
-      padding: 16px 18px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .sidebar-logo .brand {
-      font-size: 1.15rem;
-      font-weight: 900;
-      color: #fff;
-      letter-spacing: 0.5px;
-    }
-    .sidebar-logo .brand span { color: var(--amz-orange); }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
 
+    /* ══════════════════════════════════════════════════════════
+       DESKTOP SIDEBAR NAV ITEMS
+    ══════════════════════════════════════════════════════════ */
     .nav-item {
       display: flex;
       align-items: center;
-      gap: 10px;
       width: 100%;
-      padding: 11px 18px;
+      padding: 14px 24px;
       font-size: 13px;
       font-weight: 600;
-      color: #ccc;
+      color: #cccccc;
       border-left: 3px solid transparent;
-      transition: background 0.14s, color 0.14s, border-color 0.14s;
       background: none;
       cursor: pointer;
+      transition: background 0.14s, color 0.14s, border-color 0.14s;
     }
     .nav-item:hover {
       background: rgba(255,255,255,0.07);
@@ -121,166 +96,13 @@
       font-weight: 700;
     }
     .nav-item.active svg { stroke: var(--amz-orange) !important; }
-    .nav-divider {
-      height: 1px;
-      background: rgba(255,255,255,0.08);
-      margin: 6px 0;
-    }
-    .sidebar-footer {
-      border-top: 1px solid rgba(255,255,255,0.08);
-      padding: 12px 18px;
-      font-size: 11px;
-      color: #999;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
 
     /* ══════════════════════════════════════════════════════════
-       MOBILE TOP BARS
+       MOBILE BOTTOM NAV ITEMS
     ══════════════════════════════════════════════════════════ */
-    /* Tier 1 — dark navy */
-    .amz-topbar {
-      position: fixed;
-      top: 0; left: 0; right: 0;
-      height: 52px;
-      background: var(--amz-navy);
-      display: flex;
-      align-items: center;
-      padding: 0 12px;
-      gap: 8px;
-      z-index: 40;
-    }
-    .amz-topbar .brand {
-      flex: 1;
-      font-size: 1.1rem;
-      font-weight: 900;
-      color: #fff;
-    }
-    .amz-topbar .brand span { color: var(--amz-orange); }
-    .amz-topbar .date-pill {
-      background: var(--amz-bar);
-      color: var(--amz-orange-lt);
-      font-size: 10px;
-      font-weight: 700;
-      padding: 3px 9px;
-      border-radius: 3px;
-      border: 1px solid rgba(255,153,0,0.25);
-    }
-    .amz-topbar .icon-btn {
-      background: none;
-      border: none;
-      color: #fff;
-      padding: 4px;
-      cursor: pointer;
-      touch-action: manipulation;
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    /* Tier 2 — secondary bar ("Deliver to") */
-    .amz-subbar {
-      position: fixed;
-      top: 52px; left: 0; right: 0;
-      height: 26px;
-      background: var(--amz-bar);
-      display: flex;
-      align-items: center;
-      padding: 0 12px;
-      gap: 4px;
-      font-size: 10px;
-      color: #bbb;
-      z-index: 39;
-    }
-    .amz-subbar svg { width: 11px; height: 11px; stroke: var(--amz-orange-lt); flex-shrink:0; }
-    .amz-subbar strong { color: #fff; font-size: 11px; }
-
-    /* ══════════════════════════════════════════════════════════
-       MOBILE BOTTOM NAV — all fixes applied
-    ══════════════════════════════════════════════════════════ */
-    .bottom-nav {
-      background: var(--amz-white);
-      border-top: 1px solid var(--amz-border);
-      box-shadow: 0 -2px 8px rgba(0,0,0,0.10);
-      /* FIX: own GPU compositing layer — prevents ghost clicks */
-      transform: translateZ(0);
-      -webkit-transform: translateZ(0);
-      will-change: transform;
-      pointer-events: auto;
-    }
-    /* FIX: each button — kill 300ms tap delay, min touch target */
-    .bottom-nav button {
-      touch-action: manipulation;
-      -webkit-tap-highlight-color: transparent;
-      cursor: pointer;
-      min-height: 44px;
-      user-select: none;
-      -webkit-user-select: none;
-      background: none;
-      border: none;
-      color: var(--amz-muted);
-      transition: color 0.12s;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 2px;
-      flex: 1;
-      padding-top: 8px;
-    }
-    .bottom-nav button.active { color: var(--amz-navy); }
-    .bottom-nav button.active svg { stroke: var(--amz-orange) !important; }
-    /* Amazon-style orange dot indicator */
-    .nav-dot {
-      display: none;
-      width: 4px; height: 4px;
-      border-radius: 50%;
-      background: var(--amz-orange);
-      margin-top: 1px;
-    }
-    .bottom-nav button.active .nav-dot { display: block; }
-
-    /* ══════════════════════════════════════════════════════════
-       MAIN CONTENT — must clear both fixed bars + bottom nav
-    ══════════════════════════════════════════════════════════ */
-    .main-content {
-      /* mobile: 52px topbar + 26px subbar = 78px */
-      padding-top: 78px;
-      /* bottom: nav-height + home indicator + gap */
-      padding-bottom: calc(var(--nav-height) + env(safe-area-inset-bottom, 0px) + 0.5rem);
-      -webkit-overflow-scrolling: touch;
-      touch-action: pan-y;
-      background: var(--amz-bg);
-    }
-
-    /* ══════════════════════════════════════════════════════════
-       FAB — z BELOW nav so it never intercepts taps
-    ══════════════════════════════════════════════════════════ */
-    .fab-refresh {
-      position: fixed;
-      right: 16px;
-      /* clears nav + safe area + gap */
-      bottom: calc(var(--nav-height) + env(safe-area-inset-bottom, 0px) + 0.75rem);
-      width: 48px; height: 48px;
-      border-radius: 50%;
-      background: var(--amz-orange);
-      color: var(--amz-navy);
-      border: 2px solid var(--amz-orange-lt);
-      box-shadow: 0 4px 14px rgba(255,153,0,0.4);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 89; /* BELOW nav z-[150] */
-      cursor: pointer;
-      touch-action: manipulation;
-      -webkit-tap-highlight-color: transparent;
-      transition: transform 0.12s;
-    }
-    .fab-refresh:active { transform: scale(0.90); }
-
-    /* Desktop FAB position override */
-    @media (min-width: 1024px) {
-      .fab-refresh { bottom: 2rem; right: 2rem; }
-    }
+    .mob-item { color: var(--amz-muted); }
+    .mob-item.active { color: var(--amz-navy); font-weight: 900; }
+    .mob-item.active svg { stroke: var(--amz-orange) !important; }
 
     /* ══════════════════════════════════════════════════════════
        OFFLINE BANNER
@@ -291,7 +113,7 @@
       top: 0; left: 0; right: 0;
       z-index: 9999;
       background: var(--amz-red);
-      color: #fff;
+      color: white;
       text-align: center;
       font-size: 11px;
       font-weight: 700;
@@ -300,7 +122,7 @@
     body.is-offline #offline-banner { display: block; }
 
     /* ══════════════════════════════════════════════════════════
-       LOADER — Amazon dark splash
+       LOADER — Amazon dark splash screen
     ══════════════════════════════════════════════════════════ */
     #loader {
       background: var(--amz-navy);
@@ -310,6 +132,7 @@
       font-weight: 900;
       color: #fff;
       letter-spacing: 1px;
+      margin-bottom: 6px;
     }
     #loader .ld-brand span { color: var(--amz-orange); }
     #loader .ld-sub {
@@ -317,7 +140,6 @@
       font-size: 10px;
       font-weight: 700;
       letter-spacing: 4px;
-      margin-top: 6px;
     }
     #loader .ld-track {
       width: 180px;
@@ -340,220 +162,268 @@
     }
     #loader.hidden { display: none !important; pointer-events: none; }
 
-    /* Sync badge */
-    #sync-badge {
-      background: var(--amz-red);
-      color: #fff;
-      border-radius: 3px;
-      padding: 4px 10px;
-      font-size: 10px;
-      font-weight: 700;
-      position: fixed;
-      right: 16px;
-      z-index: 60;
+    /* ══════════════════════════════════════════════════════════
+       MOBILE NAV FIXES
+       FIX 1: touch-action:manipulation  — kills 300ms tap delay
+       FIX 2: transform:translateZ(0)    — own GPU layer, no ghost clicks
+       FIX 3: z-[150]                    — nothing can overlap it
+       FIX 4: main pb clears nav height  — content never hides under nav
+       FIX 5: FAB z-[89] < nav z-[150]  — FAB never steals nav taps
+    ══════════════════════════════════════════════════════════ */
+    nav.bottom-nav {
+      transform: translateZ(0);
+      -webkit-transform: translateZ(0);
+      will-change: transform;
+      pointer-events: auto;
+      background: var(--amz-white);
+      border-top: 1px solid var(--amz-border);
+      box-shadow: 0 -2px 8px rgba(0,0,0,0.10);
+    }
+    nav.bottom-nav button {
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      cursor: pointer;
+      min-height: 44px;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    /* Active orange dot indicator (Amazon app style) */
+    .nav-dot {
+      display: none;
+      width: 4px; height: 4px;
+      border-radius: 50%;
+      background: var(--amz-orange);
+      margin-top: 1px;
+    }
+    .mob-item.active .nav-dot { display: block; }
+
+    /* Main content bottom padding clears nav + safe area */
+    .main-content {
+      padding-bottom: calc(var(--nav-height) + env(safe-area-inset-bottom, 0px) + 0.5rem) !important;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-y;
     }
 
-    /* safe-area bottom helper */
+    /* Safe-area bottom helper (used on nav buttons) */
     .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
-
-    /* Smart badge */
-    .amz-badge {
-      background: var(--amz-red);
-      color: #fff;
-      font-size: 9px;
-      font-weight: 700;
-      padding: 1px 5px;
-      border-radius: 3px;
-      line-height: 1.4;
-    }
   </style>
 </head>
 
 <!-- ═══════════════════════════════════════════════════════════════
-     BODY
+     BODY — identical structure to original, only classes/styles changed
 ════════════════════════════════════════════════════════════════ -->
-<body class="h-screen w-screen overflow-hidden flex flex-col lg:flex-row">
+<body class="text-slate-800 h-screen w-screen overflow-hidden flex flex-col lg:flex-row"
+      style="background: var(--amz-bg);">
 
-  <!-- Offline indicator -->
-  <div id="offline-banner">⚡ OFFLINE MODE — Changes will sync when connected</div>
+<!-- Offline banner -->
+<div id="offline-banner">⚡ OFFLINE MODE — Changes will sync when connected</div>
 
-  <!-- Pending-sync badge -->
-  <div id="sync-badge" style="display:none; bottom: calc(4rem + env(safe-area-inset-bottom,0px) + 5rem);">
-    🔄 <span id="sync-count">0</span> queued
+<!-- Sync badge -->
+<div id="sync-badge"
+     style="display:none; position:fixed;
+            bottom: calc(var(--nav-height) + env(safe-area-inset-bottom,0px) + 5rem);
+            right:16px; z-index:60;
+            background: var(--amz-red); color:white;
+            border-radius:3px; padding:4px 10px; font-size:10px; font-weight:bold;">
+  🔄 <span id="sync-count">0</span> queued
+</div>
+
+<!-- ── Loader ─────────────────────────────────────────────────── -->
+<div id="loader" class="fixed inset-0 z-[200] flex flex-col items-center justify-center">
+  <div class="ld-brand">ANJANI<span>WATER</span></div>
+  <div class="ld-sub">LOADING SYSTEM</div>
+  <div class="ld-track"><div class="ld-fill"></div></div>
+  <div id="debug-log" class="mt-6 text-xs hidden max-w-xs text-center" style="color:#febd69;"></div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     DESKTOP SIDEBAR  — Amazon navy theme
+══════════════════════════════════════════════════════════════ -->
+<aside class="hidden lg:flex flex-col h-full z-20 flex-shrink-0"
+       style="width:220px; background:var(--amz-navy); color:#fff;">
+
+  <!-- Logo -->
+  <div style="padding:18px 20px; border-bottom:2px solid var(--amz-orange);
+              display:flex; align-items:center; gap:8px;">
+    <h1 style="font-size:1.15rem; font-weight:900; color:#fff; letter-spacing:0.5px;">
+      ANJANI<span style="color:var(--amz-orange);">WATER</span>
+    </h1>
   </div>
 
-  <!-- ── Loader ────────────────────────────────────────────────── -->
-  <div id="loader" class="fixed inset-0 z-[200] flex flex-col items-center justify-center">
-    <div class="ld-brand">ANJANI<span>WATER</span></div>
-    <div class="ld-sub">LOADING SYSTEM</div>
-    <div class="ld-track"><div class="ld-fill"></div></div>
-    <div id="debug-log" class="mt-6 text-xs hidden max-w-xs text-center" style="color:#febd69;"></div>
-  </div>
+  <!-- Nav -->
+  <nav class="flex-1 py-3 no-scrollbar" style="overflow-y:auto;">
+    <button onclick="go('orders')"    id="d-btn-orders"
+            class="nav-item active"><i data-feather="shopping-cart" class="mr-3 w-5 h-5"></i> ORDERS</button>
+    <button onclick="go('payments')"  id="d-btn-payments"
+            class="nav-item"><i data-feather="credit-card"   class="mr-3 w-5 h-5"></i> PAYMENTS</button>
+    <button onclick="go('customers')" id="d-btn-customers"
+            class="nav-item"><i data-feather="users"         class="mr-3 w-5 h-5"></i> ANJANI_AI</button>
+    <button onclick="go('leads')"     id="d-btn-leads"
+            class="nav-item"><i data-feather="target"        class="mr-3 w-5 h-5"></i> LEADS</button>
+    <button onclick="go('stock')"     id="d-btn-stock"
+            class="nav-item"><i data-feather="package"       class="mr-3 w-5 h-5"></i> STOCK</button>
 
-  <!-- ══════════════════════════════════════════════════════════
-       DESKTOP SIDEBAR
-  ══════════════════════════════════════════════════════════ -->
-  <aside class="amz-sidebar hidden lg:flex flex-col h-full z-20">
+    <div style="height:1px; background:rgba(255,255,255,0.08); margin:6px 0;"></div>
 
-    <div class="sidebar-logo">
-      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
-           fill="none" stroke="#ff9900" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-        <path d="M2 17l10 5 10-5"/>
-        <path d="M2 12l10 5 10-5"/>
-      </svg>
-      <div class="brand">ANJANI<span>WATER</span></div>
-    </div>
-
-    <nav class="flex-1 py-3 overflow-y-auto no-scrollbar">
-      <button onclick="go('orders')"    id="d-btn-orders"    class="nav-item active">
-        <i data-feather="shopping-cart" class="w-4 h-4 flex-shrink-0"></i> ORDERS
-      </button>
-      <button onclick="go('payments')"  id="d-btn-payments"  class="nav-item">
-        <i data-feather="credit-card"   class="w-4 h-4 flex-shrink-0"></i> PAYMENTS
-      </button>
-      <button onclick="go('customers')" id="d-btn-customers" class="nav-item">
-        <i data-feather="cpu"           class="w-4 h-4 flex-shrink-0"></i> ANJANI AI
-      </button>
-      <button onclick="go('leads')"     id="d-btn-leads"     class="nav-item">
-        <i data-feather="target"        class="w-4 h-4 flex-shrink-0"></i> LEADS
-      </button>
-      <button onclick="go('stock')"     id="d-btn-stock"     class="nav-item">
-        <i data-feather="package"       class="w-4 h-4 flex-shrink-0"></i> STOCK
-      </button>
-      <div class="nav-divider"></div>
-      <button onclick="go('smart')"     id="d-btn-smart"     class="nav-item" style="color:#febd69;">
-        <i data-feather="zap"           class="w-4 h-4 flex-shrink-0" style="stroke:#febd69;"></i>
-        SMART ACTIONS
-        <span id="smart-badge-desk" class="amz-badge hidden ml-auto">0</span>
-      </button>
-      <button onclick="go('dashboard')" id="d-btn-dashboard" class="nav-item">
-        <i data-feather="bar-chart-2"   class="w-4 h-4 flex-shrink-0"></i> DASHBOARD
-      </button>
-    </nav>
-
-    <div class="sidebar-footer">
-      <i data-feather="user" style="width:13px;height:13px;stroke:#febd69;"></i>
-      Account &amp; Settings
-    </div>
-  </aside>
-
-  <!-- ══════════════════════════════════════════════════════════
-       MOBILE TOP HEADER BARS
-  ══════════════════════════════════════════════════════════ -->
-  <header class="amz-topbar lg:hidden">
-    <div class="brand">ANJANI<span>WATER</span></div>
-    <div id="date-badge" class="date-pill">...</div>
-    <button class="icon-btn">
-      <i data-feather="bell" style="width:18px;height:18px;stroke:#febd69;"></i>
+    <button onclick="go('smart')"     id="d-btn-smart"
+            class="nav-item" style="color:#febd69;">
+      <i data-feather="zap" class="mr-3 w-5 h-5" style="stroke:#febd69;"></i> SMART ACTIONS
+      <span id="smart-badge-desk"
+            class="hidden ml-auto text-white text-[9px] px-1.5 py-0.5 rounded"
+            style="background:var(--amz-red);"></span>
     </button>
-  </header>
-
-  <div class="amz-subbar lg:hidden">
-    <i data-feather="map-pin"></i>
-    <span>Delivering to&nbsp;</span>
-    <strong>Vadodara, Gujarat</strong>
-  </div>
-
-  <!-- ══════════════════════════════════════════════════════════
-       MAIN CONTENT
-       pt on mobile = 52px (topbar) + 26px (subbar) = 78px
-       pb = nav-height + safe-area via CSS
-  ══════════════════════════════════════════════════════════ -->
-  <main class="main-content flex-1 h-full overflow-y-auto no-scrollbar lg:pt-6 px-3 lg:px-6">
-    <div id="view-orders">...</div>
-    <div id="view-stock"       class="hidden">...</div>
-    <div id="view-payments"    class="hidden">...</div>
-    <div id="view-customers"   class="hidden">...</div>
-    <div id="view-cust-detail" class="hidden">...</div>
-    <div id="view-leads"       class="hidden">...</div>
-    <div id="view-smart"       class="hidden">...</div>
-    <div id="view-dashboard"   class="hidden">...</div>
-  </main>
-
-  <!-- ══════════════════════════════════════════════════════════
-       MOBILE BOTTOM NAV
-       ✅ z-[150]              — highest z, nothing sits above it
-       ✅ .bottom-nav          — GPU layer, no ghost clicks
-       ✅ touch-action:manipulation on every button — no 300ms delay
-       ✅ pb-safe              — clears iPhone home indicator
-       ✅ nav-dot              — Amazon-style orange active dot
-  ══════════════════════════════════════════════════════════ -->
-  <nav class="bottom-nav lg:hidden fixed bottom-0 w-full flex justify-around z-[150]"
-       style="height: calc(var(--nav-height) + env(safe-area-inset-bottom, 0px));">
-
-    <button onclick="go('orders')"    id="m-btn-orders"    class="active pb-safe">
-      <i data-feather="shopping-cart" style="width:19px;height:19px;"></i>
-      <span style="font-size:9px;font-weight:700;">Orders</span>
-      <span class="nav-dot"></span>
-    </button>
-
-    <button onclick="go('payments')"  id="m-btn-payments"  class="pb-safe">
-      <i data-feather="credit-card"   style="width:19px;height:19px;"></i>
-      <span style="font-size:9px;font-weight:700;">Pay</span>
-      <span class="nav-dot"></span>
-    </button>
-
-    <button onclick="go('customers')" id="m-btn-customers" class="pb-safe">
-      <i data-feather="cpu"           style="width:19px;height:19px;"></i>
-      <span style="font-size:9px;font-weight:700;">AI</span>
-      <span class="nav-dot"></span>
-    </button>
-
-    <button onclick="go('leads')"     id="m-btn-leads"     class="pb-safe">
-      <i data-feather="target"        style="width:19px;height:19px;"></i>
-      <span style="font-size:9px;font-weight:700;">Leads</span>
-      <span class="nav-dot"></span>
-    </button>
-
-    <button onclick="go('stock')"     id="m-btn-stock"     class="pb-safe">
-      <i data-feather="package"       style="width:19px;height:19px;"></i>
-      <span style="font-size:9px;font-weight:700;">Stock</span>
-      <span class="nav-dot"></span>
-    </button>
-
-    <button onclick="go('smart')"     id="m-btn-smart"     class="pb-safe relative"
-            style="color:#c7511f;">
-      <i data-feather="zap"           style="width:19px;height:19px;stroke:#ff9900;"></i>
-      <span style="font-size:9px;font-weight:700;color:#c7511f;">Smart</span>
-      <span id="smart-badge-mob"
-            class="hidden absolute"
-            style="top:6px;right:6px;background:#b12704;color:#fff;
-                   font-size:8px;font-weight:700;padding:1px 4px;border-radius:3px;">
-      </span>
-      <span class="nav-dot" style="background:#ff9900;"></span>
-    </button>
-
-    <button onclick="go('dashboard')" id="m-btn-dashboard" class="pb-safe">
-      <i data-feather="bar-chart-2"   style="width:19px;height:19px;"></i>
-      <span style="font-size:9px;font-weight:700;">Dash</span>
-      <span class="nav-dot"></span>
-    </button>
-
+    <button onclick="go('dashboard')" id="d-btn-dashboard"
+            class="nav-item"><i data-feather="grid"          class="mr-3 w-5 h-5"></i> DASHBOARD</button>
   </nav>
 
-  <!-- ══════════════════════════════════════════════════════════
-       REFRESH FAB
-       z-[89] = BELOW nav (z-[150]) — can never steal nav taps
-  ══════════════════════════════════════════════════════════ -->
-  <button onclick="forceRefresh()" class="fab-refresh">
-    <i data-feather="refresh-cw" style="width:18px;height:18px;stroke:#131921;"></i>
+  <!-- Footer strip -->
+  <div style="border-top:1px solid rgba(255,255,255,0.08); padding:12px 20px;
+              font-size:11px; color:#999; display:flex; align-items:center; gap:8px;">
+    <i data-feather="user" style="width:13px;height:13px;stroke:#febd69;"></i>
+    Account &amp; Settings
+  </div>
+</aside>
+
+<!-- ══════════════════════════════════════════════════════════════
+     MOBILE TOP HEADER — Amazon 2-tier bar
+     (replaces original single white header)
+══════════════════════════════════════════════════════════════ -->
+
+<!-- Tier 1: dark navy -->
+<header class="lg:hidden fixed top-0 w-full z-40 flex items-center justify-between px-4 gap-3"
+        style="height:52px; background:var(--amz-navy);">
+  <div style="font-size:1.1rem; font-weight:900; color:#fff; flex:1;">
+    ANJANI<span style="color:var(--amz-orange);">WATER</span>
+  </div>
+  <div id="date-badge"
+       style="background:var(--amz-bar); color:var(--amz-orange-lt);
+              font-size:10px; font-weight:700; padding:3px 9px;
+              border-radius:3px; border:1px solid rgba(255,153,0,0.25); white-space:nowrap;">
+    ...
+  </div>
+</header>
+
+<!-- Tier 2: secondary bar -->
+<div class="lg:hidden fixed left-0 right-0 z-[39] flex items-center gap-1 px-3"
+     style="top:52px; height:26px; background:var(--amz-bar); font-size:10px; color:#bbb;">
+  <i data-feather="map-pin" style="width:11px;height:11px;stroke:#febd69;flex-shrink:0;"></i>
+  <span>Delivering to&nbsp;</span>
+  <strong style="color:#fff; font-size:11px;">Vadodara, Gujarat</strong>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     MAIN CONTENT
+     • mobile pt: 52px (topbar) + 26px (subbar) = 78px
+     • pb: handled by .main-content CSS (nav-height + safe-area)
+     • Everything else identical to original
+══════════════════════════════════════════════════════════════ -->
+<main class="main-content flex-1 h-full overflow-y-auto no-scrollbar
+             pt-[78px] lg:pt-8 px-4 lg:px-8">
+  <div id="view-orders">...</div>
+  <div id="view-stock"       class="hidden">...</div>
+  <div id="view-payments"    class="hidden">...</div>
+  <div id="view-customers"   class="hidden">...</div>
+  <div id="view-cust-detail" class="hidden">...</div>
+  <div id="view-leads"       class="hidden">...</div>
+  <div id="view-smart"       class="hidden">...</div>
+  <div id="view-dashboard"   class="hidden">...</div>
+</main>
+
+<!-- ══════════════════════════════════════════════════════════════
+     MOBILE BOTTOM NAV
+     ALL FIXES:
+       z-[150]              → highest z in layout
+       .bottom-nav          → GPU layer, no ghost clicks
+       touch-action on btns → no 300ms delay
+       pb-safe on btns      → home indicator clearance
+       nav-dot              → Amazon orange active indicator
+══════════════════════════════════════════════════════════════ -->
+<nav class="bottom-nav lg:hidden fixed bottom-0 w-full
+            flex justify-around items-stretch h-20 z-[150]">
+
+  <button onclick="go('orders')"    id="m-btn-orders"
+          class="mob-item active flex-1 pb-safe flex flex-col items-center justify-center gap-1">
+    <i data-feather="shopping-cart" class="w-5 h-5"></i>
+    <span class="text-[9px] font-bold">Orders</span>
+    <span class="nav-dot"></span>
   </button>
 
-  <!-- ══════════════════════════════════════════════════════════
-       LOGIN SCREEN
-  ══════════════════════════════════════════════════════════ -->
-  <div id="login-screen"
-       class="fixed inset-0 z-[10000] flex flex-col items-center justify-center"
-       style="background: var(--amz-bg);">
-  </div>
+  <button onclick="go('payments')"  id="m-btn-payments"
+          class="mob-item flex-1 pb-safe flex flex-col items-center justify-center gap-1">
+    <i data-feather="credit-card"   class="w-5 h-5"></i>
+    <span class="text-[9px] font-bold">Pay</span>
+    <span class="nav-dot"></span>
+  </button>
 
-  <!-- ══════════════════════════════════════════════════════════
-       SCRIPTS
-  ══════════════════════════════════════════════════════════ -->
-  <script>window.MAPS_API_KEY = 'YOUR_KEY';</script>
-  <script type="module" src="firebase-api.js"></script>
-  <script type="module" src="src/app.js"></script>
+  <button onclick="go('customers')" id="m-btn-customers"
+          class="mob-item flex-1 pb-safe flex flex-col items-center justify-center gap-1">
+    <i data-feather="users"         class="w-5 h-5"></i>
+    <span class="text-[9px] font-bold">AI</span>
+    <span class="nav-dot"></span>
+  </button>
+
+  <button onclick="go('leads')"     id="m-btn-leads"
+          class="mob-item flex-1 pb-safe flex flex-col items-center justify-center gap-1">
+    <i data-feather="target"        class="w-5 h-5"></i>
+    <span class="text-[9px] font-bold">Leads</span>
+    <span class="nav-dot"></span>
+  </button>
+
+  <button onclick="go('stock')"     id="m-btn-stock"
+          class="mob-item flex-1 pb-safe flex flex-col items-center justify-center gap-1">
+    <i data-feather="package"       class="w-5 h-5"></i>
+    <span class="text-[9px] font-bold">Stock</span>
+    <span class="nav-dot"></span>
+  </button>
+
+  <button onclick="go('smart')"     id="m-btn-smart"
+          class="mob-item flex-1 pb-safe flex flex-col items-center justify-center gap-1 relative"
+          style="color:#c7511f;">
+    <i data-feather="zap"           class="w-5 h-5" style="stroke:#ff9900;"></i>
+    <span class="text-[9px] font-bold" style="color:#c7511f;">Smart</span>
+    <span id="smart-badge-mob"
+          class="hidden absolute top-2 right-2 text-white text-[8px] px-1 rounded"
+          style="background:var(--amz-red);"></span>
+    <span class="nav-dot" style="background:#ff9900;"></span>
+  </button>
+
+  <button onclick="go('dashboard')" id="m-btn-dashboard"
+          class="mob-item flex-1 pb-safe flex flex-col items-center justify-center gap-1">
+    <i data-feather="grid"          class="w-5 h-5"></i>
+    <span class="text-[9px] font-bold">Dash</span>
+    <span class="nav-dot"></span>
+  </button>
+
+</nav>
+
+<!-- ══════════════════════════════════════════════════════════════
+     REFRESH FAB
+     z-[89] = BELOW nav z-[150] so it never steals nav taps
+     Position clears nav + safe area via CSS variable
+══════════════════════════════════════════════════════════════ -->
+<button onclick="forceRefresh()"
+        class="fixed right-4 md:bottom-8 md:right-8 w-12 h-12 rounded-full shadow-xl
+               flex items-center justify-center z-[89] active:scale-90 transition"
+        style="bottom: calc(var(--nav-height) + env(safe-area-inset-bottom,0px) + 0.75rem);
+               background: var(--amz-orange);
+               border: 2px solid var(--amz-orange-lt);
+               touch-action: manipulation;">
+  <i data-feather="refresh-cw" class="w-5 h-5" style="stroke:#131921;"></i>
+</button>
+
+<!-- ══════════════════════════════════════════════════════════════
+     LOGIN SCREEN — untouched, app.js controls this
+══════════════════════════════════════════════════════════════ -->
+<div id="login-screen"
+     class="fixed inset-0 z-[10000] flex flex-col items-center justify-center bg-sky-900">
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SCRIPTS — 100% identical to original, nothing changed
+══════════════════════════════════════════════════════════════ -->
+<script>window.MAPS_API_KEY = 'YOUR_KEY';</script>
+<script type="module" src="firebase-api.js"></script>
+<script type="module" src="src/app.js"></script>
 
 </body>
 </html>
