@@ -31,7 +31,7 @@ export function render() {
   const searchTerm = (searchEl ? searchEl.value : '').toLowerCase();
   if (searchTerm.length > 0 && searchTerm.length < 5 && isNaN(searchTerm)) return;
 
-// Use timezone-safe dates for India (IST)
+  // Use timezone-safe dates for India (IST)
   const getLocalISO = (d) => new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
   const todayStrISO = getLocalISO(new Date());
   const fiveDaysAgoStr = getLocalISO(new Date(Date.now() - 5 * 86400000)); // 5 days in milliseconds
@@ -53,6 +53,7 @@ export function render() {
       return o.status === 'Pending' || (o.status === 'Delivered' && isRecent);
     }
   });
+  
   const sortMode = window._sortMode || 'TASK';
   let pending;
   if (sortMode === 'TASK') {
@@ -165,38 +166,6 @@ export function updMsg(id) {
   }
 }
 
-export function saveOrderEdit(id) {
-  const qty     = document.getElementById('q-'+id).value;
-  const date    = document.getElementById('d-'+id).value;
-  const time    = document.getElementById('t-'+id) ? document.getElementById('t-'+id).value : '09:00';
-  const address = document.getElementById('a-'+id).value;
-  const btn     = document.querySelector(`button[onclick="saveOrderEdit('${id}')"]`);
-  const o       = DB.orders.find(x => String(x.id) === String(id));
-
-  if (!navigator.onLine) {
-    if (o) { o.boxes = qty; o.deliveryDate = date; o.time = time; o.address = address; }
-    if (btn) btn.innerHTML = '<i data-feather="check" class="w-4 h-4 text-amber-500"></i>';
-    enqueueAction('updateOrderStatus', { id, qty, date, time, address, status: null });
-    showOfflineToast('✏️ Order #' + id + ' edit saved offline');
-    return;
-  }
-
-  if (o) { o.boxes = qty; o.deliveryDate = date; o.time = time; o.address = address; }
-  if (btn) {
-    const orig = btn.innerHTML;
-    btn.innerHTML = '<i data-feather="loader" class="w-4 h-4 animate-spin"></i>'; btn.disabled = true;
-    google.script.run.withSuccessHandler(() => {
-      btn.innerHTML = '<i data-feather="check" class="w-4 h-4 text-green-600"></i>';
-      setTimeout(() => { btn.innerHTML = orig; btn.disabled = false; feather.replace(); }, 1500);
-      updMsg(id);
-    }).withFailureHandler((e) => {
-      btn.innerHTML = '<i data-feather="x" class="w-4 h-4 text-red-500"></i>';
-      btn.disabled = false; feather.replace();
-      showToast('❌ Save failed: ' + e.message, true);
-    }).updateOrderStatus(id, null, qty, date, time, address);
-  }
-}
-
 export function copyOrder(id) {
   const o = DB.orders.find(x => x.id == id);
   if (!o) return;
@@ -268,7 +237,7 @@ export function toggleSort() {
   feather.replace(); render();
 }
 
-export function placeOrder(e) {
+export async function placeOrder(e) {
   e.preventDefault();
   const btn = document.getElementById('btn-save');
   if (btn.disabled) return;
@@ -295,15 +264,15 @@ export function placeOrder(e) {
     customer:     c.name || 'Unknown',
     mobile:       c.mobile || '',
     map:          c.map || '',
-    mapLink:      document.getElementById('maps-link-hidden').value || '',
+    mapLink:      document.getElementById('maps-link-hidden') ? document.getElementById('maps-link-hidden').value : '',
     address:      document.getElementById('ord-addr').value || '',
     boxes:        safeQty,
     sku:          document.getElementById('ord-sku').value || '200ml',
     rate:         safeRate,
     amount:       (safeQty * safeRate) || 0,
     deliveryDate: document.getElementById('ord-date').value || new Date().toISOString().split('T')[0],
-    time:         document.getElementById('ord-time').value || '09:00',
-    staff:        document.getElementById('ord-staff').value || 'Nilesh',
+    time:         document.getElementById('ord-time') ? document.getElementById('ord-time').value : '09:00',
+    staff:        document.getElementById('ord-staff') ? document.getElementById('ord-staff').value : 'Nilesh',
     status:       'Pending'
   };
 
@@ -319,35 +288,74 @@ export function placeOrder(e) {
     return;
   }
 
-  // ── ONLINE path ───────────────────────────────────────────
+  // ── ONLINE path (FIREBASE) ────────────────────────────────
   btn.disabled = true;
   btn.innerText = "SAVING...";
 
-  google.script.run
-    .withSuccessHandler((res) => {
-      const r = typeof res === 'string' ? JSON.parse(res) : res; 
-      window._highlightID = r && r.id ? r.id : data.id;
-      
-      if (typeof window._loadData === 'function') window._loadData();
-      e.target.reset();
-      document.getElementById('ord-date').value = new Date().toISOString().split('T')[0];
-      btn.disabled = false;
-      btn.innerText = "CONFIRM ORDER";
-    })
-    .withFailureHandler((err) => {
-      console.error("Firebase Save Error:", err); 
-      btn.disabled = false;
-      btn.innerText = "CONFIRM ORDER";
-      showToast('❌ Save failed — saved offline instead', true);
-      data._offline = true;
-      DB.orders.push(data);
-      if (typeof render === 'function') render();
-      enqueueAction('saveOrder', data);
-    })
-    .saveOrder(data);
+  try {
+    if (window.FirebaseAPI) {
+      await window.FirebaseAPI.saveOrder(data);
+    }
+    
+    window._highlightID = data.id;
+    if (typeof window._loadData === 'function') window._loadData();
+    
+    e.target.reset();
+    document.getElementById('ord-date').value = new Date().toISOString().split('T')[0];
+    btn.disabled = false;
+    btn.innerText = "CONFIRM ORDER";
+  } catch (err) {
+    console.error("Firebase Save Error:", err); 
+    btn.disabled = false;
+    btn.innerText = "CONFIRM ORDER";
+    showToast('❌ Save failed — saved offline instead', true);
+    data._offline = true;
+    DB.orders.push(data);
+    if (typeof render === 'function') render();
+    enqueueAction('saveOrder', data);
+  }
 }
 
-export function doDel(id) {
+export async function saveOrderEdit(id) {
+  const qty     = document.getElementById('q-'+id).value;
+  const date    = document.getElementById('d-'+id).value;
+  const timeEl  = document.getElementById('t-'+id);
+  const time    = timeEl ? timeEl.value : '09:00';
+  const address = document.getElementById('a-'+id).value;
+  const btn     = document.querySelector(`button[onclick="saveOrderEdit('${id}')"]`);
+  const o       = DB.orders.find(x => String(x.id) === String(id));
+
+  if (!navigator.onLine) {
+    if (o) { o.boxes = qty; o.deliveryDate = date; o.time = time; o.address = address; }
+    if (btn) btn.innerHTML = '<i data-feather="check" class="w-4 h-4 text-amber-500"></i>';
+    enqueueAction('updateOrderStatus', { id, qty, date, time, address, status: null });
+    showOfflineToast('✏️ Order #' + id + ' edit saved offline');
+    return;
+  }
+
+  if (o) { o.boxes = qty; o.deliveryDate = date; o.time = time; o.address = address; }
+  if (btn) {
+    const orig = btn.innerHTML;
+    btn.innerHTML = '<i data-feather="loader" class="w-4 h-4 animate-spin"></i>'; 
+    btn.disabled = true;
+    
+    try {
+      if (window.FirebaseAPI) {
+        await window.FirebaseAPI.updateOrderStatus(id, null, qty, date, time, address);
+      }
+      
+      btn.innerHTML = '<i data-feather="check" class="w-4 h-4 text-green-600"></i>';
+      setTimeout(() => { btn.innerHTML = orig; btn.disabled = false; feather.replace(); }, 1500);
+      updMsg(id);
+    } catch (e) {
+      btn.innerHTML = '<i data-feather="x" class="w-4 h-4 text-red-500"></i>';
+      btn.disabled = false; feather.replace();
+      showToast('❌ Save failed: ' + e.message, true);
+    }
+  }
+}
+
+export async function doDel(id) {
   const qty     = document.getElementById('q-' + id).value;
   const date    = document.getElementById('d-' + id).value;
   const timeEl  = document.getElementById('t-' + id);
@@ -365,17 +373,20 @@ export function doDel(id) {
     return;
   }
 
-  // ── ONLINE path ───────────────────────────────────────────
+  // ── ONLINE path (FIREBASE) ────────────────────────────────
   if (btn) btn.innerText = "SAVING...";
-  google.script.run
-    .withSuccessHandler(() => { if (typeof window._loadData === 'function') window._loadData(); })
-    .withFailureHandler((err) => {
-      if (btn) btn.innerText = "DELIVER →";
-      const o = DB.orders.find(x => String(x.id) === String(id));
-      if (o) { o.status = 'Delivered'; o._offline = true; }
-      if (typeof render === 'function') render();
-      enqueueAction('updateOrderStatus', { id, status: 'Delivered', qty, date, time, address });
-      showOfflineToast('✅ Saved offline — will sync on reconnect');
-    })
-    .updateOrderStatus(id, "Delivered", qty, date, time, address);
+  
+  try {
+    if (window.FirebaseAPI) {
+      await window.FirebaseAPI.updateOrderStatus(id, "Delivered", qty, date, time, address);
+    }
+    if (typeof window._loadData === 'function') window._loadData();
+  } catch (err) {
+    if (btn) btn.innerText = "DELIVER →";
+    const o = DB.orders.find(x => String(x.id) === String(id));
+    if (o) { o.status = 'Delivered'; o._offline = true; }
+    if (typeof render === 'function') render();
+    enqueueAction('updateOrderStatus', { id, status: 'Delivered', qty, date, time, address });
+    showOfflineToast('✅ Saved offline — will sync on reconnect');
+  }
 }
