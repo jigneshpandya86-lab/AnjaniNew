@@ -5,6 +5,16 @@ import { DB, STAFF_NUM, CONFIG } from './state.js';
 import { esc, showToast } from './utils.js';
 import { enqueueAction, showOfflineToast } from './sync.js';
 
+// 🔥 THE FIX: Helper to lock changes into local storage so background reloads don't wipe the screen!
+function updateLocalCache() {
+  if (window.AnjaniCache) {
+    window.AnjaniCache.set('anjani_db_v2', {
+      customers: DB.customers, orders: DB.orders, payments: DB.payments,
+      stock: DB.stock, jobs: DB.jobs, smartMsgs: DB.smartMsgs, leads: DB.leads
+    });
+  }
+}
+
 export function render() {
   // Dropdowns
   const sel = document.getElementById('ord-cust');
@@ -275,6 +285,7 @@ export async function placeOrder(e) {
   if (!navigator.onLine) {
     data._offline = true;
     DB.orders.push(data);
+    updateLocalCache();
     if (typeof render === 'function') render();
     e.target.reset();
     document.getElementById('ord-date').value = new Date().toISOString().split('T')[0];
@@ -287,9 +298,10 @@ export async function placeOrder(e) {
   btn.innerText = "SAVING...";
 
   try {
-    // 🔥 1. INSTANT UI UPDATE: Show it before Firebase even replies
+    // 🔥 1. INSTANT UI UPDATE
     DB.orders.push(data);
     window._highlightID = data.id;
+    updateLocalCache(); // Secure it in the local cache immediately!
     if (typeof render === 'function') render();
     
     e.target.reset();
@@ -307,8 +319,8 @@ export async function placeOrder(e) {
     btn.disabled = false;
     btn.innerText = "CONFIRM ORDER";
     showToast('❌ Save failed — saved offline instead', true);
-    // Already in local DB, just queue it for sync
     data._offline = true;
+    updateLocalCache();
     enqueueAction('saveOrder', data);
   }
 }
@@ -325,6 +337,7 @@ export async function saveOrderEdit(id) {
   if (!navigator.onLine) {
     if (o) { o.boxes = qty; o.deliveryDate = date; o.time = time; o.address = address; }
     if (btn) btn.innerHTML = '<i data-feather="check" class="w-4 h-4 text-amber-500"></i>';
+    updateLocalCache();
     enqueueAction('updateOrderStatus', { id, qty, date, time, address, status: null });
     showOfflineToast('✏️ Order #' + id + ' edit saved offline');
     return;
@@ -338,13 +351,14 @@ export async function saveOrderEdit(id) {
     try {
       // 🔥 1. INSTANT UI UPDATE
       if (o) { o.boxes = qty; o.deliveryDate = date; o.time = time; o.address = address; }
+      updateLocalCache(); // Secure it in the cache!
+      if (typeof render === 'function') render();
       
       // 🔥 2. Push to Firebase
       if (window.FirebaseAPI) {
         await window.FirebaseAPI.updateOrderStatus(id, null, qty, date, time, address);
       }
       
-      if (typeof render === 'function') render();
       btn.innerHTML = '<i data-feather="check" class="w-4 h-4 text-green-600"></i>';
       setTimeout(() => { if(btn){ btn.innerHTML = orig; btn.disabled = false; feather.replace(); } }, 1500);
       updMsg(id);
@@ -366,6 +380,7 @@ export async function doDel(id) {
   if (!navigator.onLine) {
     const o = DB.orders.find(x => String(x.id) === String(id));
     if (o) { o.status = 'Delivered'; o.boxes = qty; o.deliveryDate = date; o._offline = true; }
+    updateLocalCache();
     if (typeof render === 'function') render();
     enqueueAction('updateOrderStatus', { id, status: 'Delivered', qty, date, time, address });
     showOfflineToast('✅ Order #' + id + ' marked delivered offline');
@@ -378,6 +393,7 @@ export async function doDel(id) {
     // 🔥 1. INSTANT UI UPDATE
     const o = DB.orders.find(x => String(x.id) === String(id));
     if (o) { o.status = 'Delivered'; o.boxes = qty; o.deliveryDate = date; }
+    updateLocalCache(); // Secure it in the cache!
     if (typeof render === 'function') render();
 
     // 🔥 2. Push to Firebase
@@ -388,6 +404,7 @@ export async function doDel(id) {
     if (btn) btn.innerText = "DELIVER →";
     const o = DB.orders.find(x => String(x.id) === String(id));
     if (o) { o.status = 'Delivered'; o._offline = true; }
+    updateLocalCache();
     if (typeof render === 'function') render();
     enqueueAction('updateOrderStatus', { id, status: 'Delivered', qty, date, time, address });
     showOfflineToast('✅ Saved offline — will sync on reconnect');
