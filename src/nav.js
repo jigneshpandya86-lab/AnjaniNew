@@ -1,26 +1,33 @@
 import { DB } from './state.js';
 import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 
+// ======================================================================
+// MAIN DATA LOADER (WITH BULLETPROOF DATA GATE & PATIENCE LOOP)
+// ======================================================================
 export async function loadData() {
   return new Promise(async (resolve) => {
-    const log = document.getElementById('debug-log');
     const CACHE_KEY = 'anjani_db_v2'; 
 
     window.DB = DB;
     window._loadData = loadData;
 
-    const loader = document.getElementById('loader');
     const connText = document.getElementById('conn-text');
+    
+    // ── Master switch for the Data Gate ──
+    let gateUnlocked = false;
+    const unlockGate = () => {
+        if (!gateUnlocked) {
+            gateUnlocked = true;
+            resolve(true); // Tells the Splash Screen to vanish!
+        }
+    };
 
     // ======================================================================
-    // STEP 1: INSTANT CACHE LOAD (0.0 SECONDS)
+    // STEP 1: INSTANT CACHE LOAD
     // ======================================================================
     const cached = window.AnjaniCache ? await window.AnjaniCache.get(CACHE_KEY) : null;
-    let isCached = false;
     
     if (cached && Object.keys(cached).length > 0) {
-      isCached = true;
-      // 1A. Instantly inject memory
       DB.customers = cached.customers || []; 
       DB.orders    = cached.orders || [];
       DB.payments  = cached.payments || []; 
@@ -29,7 +36,6 @@ export async function loadData() {
       DB.smartMsgs = cached.smartMsgs || {}; 
       DB.leads     = cached.leads || [];
       
-      // 1B. Draw the screen immediately
       if (typeof window._render === 'function') window._render();
       if (typeof window._renderLeads === 'function') window._renderLeads();
       if (typeof window._renderDashboard === 'function') window._renderDashboard();
@@ -39,57 +45,65 @@ export async function loadData() {
         connText.classList.add('animate-pulse'); 
       }
       
-      // Since data is loaded from cache, we can resolve the promise immediately to unlock the screen.
-      resolve(true);
+      // We have cache, unlock the gate immediately so you can work!
+      unlockGate();
     } else {
       if (connText) connText.innerText = 'First time setup, downloading...';
     }
 
-    // Stop here if the user's phone is completely disconnected from the internet
     if (!navigator.onLine) {
       if (connText) {
         connText.innerText = 'Offline — Using cached data';
         connText.classList.remove('animate-pulse');
       }
-      resolve(true); 
+      unlockGate(); // Unlock if offline
       return; 
     }
 
     // ======================================================================
-    // STEP 2: SILENT BACKGROUND SYNC (FIREBASE)
+    // STEP 2: SILENT BACKGROUND SYNC (FIREBASE WITH PATIENCE LOOP)
     // ======================================================================
-    if (typeof window.setupRealtime === 'function') {
-      window.setupRealtime(async function(eventName) {
-        if (eventName === '__initial_load_complete__') {
+    let checkCount = 0;
+    
+    // Check every 100ms if Firebase is ready (up to 2 seconds max)
+    const checkFirebase = setInterval(() => {
+      if (typeof window.setupRealtime === 'function') {
+        clearInterval(checkFirebase); // Found it! Stop checking.
+        
+        window.setupRealtime(async function(eventName) {
+          // The exact second Firebase sends us ANY data, unlock the gate!
+          unlockGate();
+
           if (connText) {
             connText.innerText = 'Live — ' + new Date().toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'});
             connText.classList.remove('animate-pulse');
           }
-          // If the app started WITHOUT cache, we resolve here once Firebase sends the initial payload.
-          if (!isCached) resolve(true);
-        }
 
-        // Silently update the screen with the fresh Firebase data
-        if (typeof window._render === 'function') window._render();
-        if (typeof window._renderLeads === 'function') window._renderLeads();
-        if (typeof window._renderDashboard === 'function') window._renderDashboard();
+          // Silently update the screen with the fresh Firebase data
+          if (typeof window._render === 'function') window._render();
+          if (typeof window._renderLeads === 'function') window._renderLeads();
+          if (typeof window._renderDashboard === 'function') window._renderDashboard();
 
-        // Save the fresh data to cache so it's ready for the next instant load
-        if (window.AnjaniCache) {
-          await window.AnjaniCache.set(CACHE_KEY, {
-            customers: DB.customers, orders: DB.orders, payments: DB.payments,
-            stock: DB.stock, jobs: DB.jobs, smartMsgs: DB.smartMsgs, leads: DB.leads,
-          });
-        }
-      });
-    } else {
-        // Fail-safe resolution in case setupRealtime isn't loaded yet.
-        console.warn("setupRealtime not found.");
-        resolve(true);
-    }
+          // Save the fresh data to cache
+          if (window.AnjaniCache) {
+            await window.AnjaniCache.set(CACHE_KEY, {
+              customers: DB.customers, orders: DB.orders, payments: DB.payments,
+              stock: DB.stock, jobs: DB.jobs, smartMsgs: DB.smartMsgs, leads: DB.leads,
+            });
+          }
+        });
+        
+      } else if (checkCount > 20) {
+        // Waited 2 seconds and still no Firebase. Fail safely.
+        clearInterval(checkFirebase);
+        console.warn("setupRealtime took too long to load.");
+        unlockGate(); 
+      }
+      checkCount++;
+    }, 100);
+
   });
 }
-
 // ======================================================================
 // NAVIGATION ROUTER (FIXED FOR HTML "view-" IDs)
 // ======================================================================
