@@ -26,49 +26,39 @@ export async function dispatch(actionType, payload) {
   // STEP 4: BACKGROUND FIREBASE SYNC
   try {
     if (!navigator.onLine) throw new Error("Offline");
-    if (!window.FirebaseAPI) throw new Error("Firebase not ready");
+    
+    // If Firebase isn't ready yet, throw an error to trigger the queue silently
+    if (!window.FirebaseAPI) throw new Error("Firebase API not ready yet");
 
     // Route to the correct Firebase API based on the action
     switch (actionType) {
-      // ORDERS
       case 'SAVE_ORDER':   
         await window.FirebaseAPI.saveOrder(payload); break;
       case 'UPDATE_ORDER': 
         await window.FirebaseAPI.updateOrderStatus(payload.id, payload.status, payload.qty, payload.date, payload.time, payload.address); break;
-      
-      // PAYMENTS
       case 'SAVE_PAYMENT': 
         await window.FirebaseAPI.savePayment(payload); break;
-      
-      // CUSTOMERS
       case 'SAVE_CLIENT':  
         await window.FirebaseAPI.saveClient(payload); break;
-      
-      // STOCK
       case 'SAVE_STOCK':   
         await window.FirebaseAPI.saveStock(payload); break;
-      
-      // LEADS
       case 'SAVE_LEAD':    
         await window.FirebaseAPI.saveLead(payload); break;
       case 'UPDATE_LEAD':  
         await window.FirebaseAPI.updateLead(payload.id, payload.updates); break;
-      
-      // JOBS / SMART ACTIONS
       case 'SAVE_JOB':     
         await window.FirebaseAPI.saveJob(payload); break;
       case 'UPDATE_JOB':   
         await window.FirebaseAPI.updateJob(payload.id, payload.updates); break;
-
       default:
         console.warn(`[Engine] Unhandled action type: ${actionType}`);
     }
     
-    console.log(`✅ [Engine] ${actionType} synced securely to cloud.`);
+    console.log(`✅ [Engine] ${actionType} synced securely to Firebase.`);
 
   } catch (err) {
-    // If offline or Firebase fails, quietly push it to the background queue
-    console.warn(`⏳ [Engine] ${actionType} queued for background sync. Reason:`, err.message);
+    // If Firebase fails or isn't connected yet, queue it safely in the background
+    console.warn(`⏳ [Engine] Queued for background sync. Reason:`, err.message);
     enqueueAction(actionType, payload);
   }
 }
@@ -77,10 +67,8 @@ export async function dispatch(actionType, payload) {
 // This tells the engine exactly how to modify your local arrays instantly
 function applyToLocalDB(actionType, payload) {
   
-  // Helper to quickly flag items as offline if there's no internet
   const isOffline = !navigator.onLine;
 
-  // Helper to quickly update existing records by ID
   const updateRecord = (table, id, mappedUpdates) => {
     const idx = DB[table].findIndex(x => String(x.id) === String(id));
     if (idx > -1) {
@@ -89,8 +77,6 @@ function applyToLocalDB(actionType, payload) {
   };
 
   switch (actionType) {
-    
-    // -- ORDERS --
     case 'SAVE_ORDER':
       payload._offline = isOffline;
       DB.orders.push(payload);
@@ -104,31 +90,23 @@ function applyToLocalDB(actionType, payload) {
       if (payload.address !== null) ordUpdates.address = payload.address;
       updateRecord('orders', payload.id, ordUpdates);
       break;
-
-    // -- PAYMENTS --
     case 'SAVE_PAYMENT':
       payload._offline = isOffline;
       DB.payments.push(payload);
       break;
-
-    // -- CUSTOMERS --
     case 'SAVE_CLIENT':
       payload._offline = isOffline;
       const existingCustIdx = DB.customers.findIndex(x => String(x.id) === String(payload.id));
       if (existingCustIdx > -1) {
-        DB.customers[existingCustIdx] = payload; // Update existing
+        DB.customers[existingCustIdx] = payload; 
       } else {
-        DB.customers.push(payload); // Create new
+        DB.customers.push(payload); 
       }
       break;
-
-    // -- STOCK --
     case 'SAVE_STOCK':
       payload._offline = isOffline;
       DB.stock.push(payload);
       break;
-
-    // -- LEADS --
     case 'SAVE_LEAD':
       payload._offline = isOffline;
       DB.leads.push(payload);
@@ -136,8 +114,6 @@ function applyToLocalDB(actionType, payload) {
     case 'UPDATE_LEAD':
       updateRecord('leads', payload.id, payload.updates);
       break;
-
-    // -- JOBS --
     case 'SAVE_JOB':
       payload._offline = isOffline;
       DB.jobs.push(payload);
