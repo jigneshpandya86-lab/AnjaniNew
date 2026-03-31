@@ -3,6 +3,7 @@
 // ============================================================
 import { DB, STAFF_NUM } from './state.js';
 import { showToast } from './utils.js';
+import { dispatch } from './engine.js'; // 🔥 Powered by the Central Sync Engine!
 
 let jobFilter = 'Active';
 
@@ -16,19 +17,24 @@ export function renderJobs() {
   const list = document.getElementById('job-list');
   if (!list) return;
   list.innerHTML = '';
+  
   const todayStr = new Date().toLocaleDateString('en-CA');
   const jobs = (DB.jobs||[]).slice().reverse();
   let count = 0;
+  
   jobs.forEach(j => {
     if (jobFilter==='Done' && j.status!=='Done') return;
     if (jobFilter==='Active' && j.status==='Done') return;
     count++;
+    
     let statusBadge = '', rowClass = 'bg-white';
     const msg = encodeURIComponent("📋 Job: "+j.task);
+    
     if (j.status==='Sent') {
       if (j.followUp > todayStr) { statusBadge = '<span class="text-[9px] text-slate-400 font-normal bg-slate-100 px-1.5 py-0.5 rounded ml-2">🕒 Waiting</span>'; rowClass = 'opacity-60 bg-slate-50 grayscale'; }
       else { statusBadge = '<span class="text-[9px] text-orange-600 font-bold bg-orange-50 px-1.5 py-0.5 rounded ml-2 animate-pulse">🔥 DUE</span>'; rowClass = 'bg-white border-l-4 border-orange-400'; }
     }
+    
     let buttons = '';
     if (jobFilter==='Active') {
       const jobIsDue = j.status==='Sent' && j.followUp <= todayStr;
@@ -38,10 +44,12 @@ export function renderJobs() {
       buttons = `<div class="flex gap-2 shrink-0 ml-2"><button onclick="runJob('UNDO','${j.id}')" class="px-3 h-8 bg-white border border-slate-200 text-slate-500 rounded-lg text-[10px] font-bold hover:bg-slate-50 transition">↺ UNDO</button></div>`;
       statusBadge = '<span class="text-[9px] text-green-600 font-bold ml-2">✔ DONE</span>';
     }
+    
     list.innerHTML += `<div class="p-3 ${rowClass} border-b border-slate-100 flex items-center justify-between transition-all duration-300"><div class="overflow-hidden min-w-0 flex-1"><div class="flex items-center flex-wrap"><span class="text-sm font-bold text-slate-800 truncate mr-1">${j.task}</span>${statusBadge}</div><div class="text-[10px] text-slate-400 font-medium truncate mt-0.5 flex items-center gap-1"><i data-feather="calendar" class="w-3 h-3"></i> ${j.date}</div></div>${buttons}<a id="lnk-wa-${j.id}" href="https://wa.me/91${STAFF_NUM}?text=${msg}" target="_blank" class="hidden"></a><a id="lnk-sms-${j.id}" href="sms:${STAFF_NUM}?body=${msg}" class="hidden"></a></div>`;
   });
+  
   if (!count) list.innerHTML = `<div class="p-8 text-center text-slate-400 text-xs italic">No ${jobFilter} jobs found.</div>`;
-  feather.replace();
+  try { feather.replace(); } catch(e){ console.warn('[feather]', e.message); }
   if (typeof updateSmartBadge === 'function') updateSmartBadge();
 }
 
@@ -71,17 +79,25 @@ function sjBuildMsg() {
   return '📋 *Pending Work*\n\n'+p.map((j,i) => (i+1)+'. '+j.task+' ('+j.status+')').join('\n')+'\n\nPlease complete and confirm.\n– Anjani Water';
 }
 
+// 🔥 Engine-Powered Follow Ups
 export function sendAllDueFollowUps() {
   const todayStr = new Date().toLocaleDateString('en-CA');
   const dueJobs = (DB.jobs||[]).filter(j => j.status==='Sent' && j.followUp<=todayStr);
+  
   if (!dueJobs.length) { showToast('No overdue tasks!'); return; }
+  
   let msg = '🔁 *Follow Up — ' + dueJobs.length + ' Pending Tasks*\n\n';
   dueJobs.forEach((j,i) => { msg += (i+1)+'. '+j.task+'\n'; });
   msg += '\nNilesh, inn sab ka status batao.\n– Anjani Water';
   nileshWA(msg);
+  
   const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate()+1);
   const tomorrowStr = tomorrow.toLocaleDateString('en-CA');
-  dueJobs.forEach(j => { j.followUp=tomorrowStr; });
+  
+  dueJobs.forEach(j => { 
+    dispatch('UPDATE_JOB', { id: j.id, updates: { followUp: tomorrowStr } });
+  });
+  
   renderJobs();
   if (typeof window._updateSmartBadge === 'function') window._updateSmartBadge();
 }
@@ -114,6 +130,7 @@ export function renderDailyStatus() {
     const diffH = Math.floor(diffMs/3600000);
     const diffM = Math.floor((diffMs%3600000)/60000);
     const countdown = diffH>0 ? diffH+'h '+diffM+'m' : diffM+'m';
+    
     let badge, rowClass, btnCls;
     if (sent) {
       badge = '<span class="text-[9px] text-green-600 font-bold bg-green-50 px-2 py-0.5 rounded-full border border-green-100">✅ Sent</span>';
@@ -137,7 +154,7 @@ export function renderDailyStatus() {
           + '</div>';
   });
   list.innerHTML = html;
-  feather.replace();
+  try { feather.replace(); } catch(e){ console.warn('[feather]', e.message); }
 }
 
 export function triggerDailyCheckpoint(key) {
@@ -162,39 +179,59 @@ export function filterJobs(status) {
   renderJobs();
 }
 
+// 🔥 Engine-Powered Job Execution (Create, Sent, Done, Undo)
 export function runJob(action, id, method) {
   if (action==='CREATE') {
     const input = document.getElementById('job-input');
     const text = input.value.trim();
     if (!text) return;
+    
+    const newJob = {
+      id: "JOB-"+Date.now(), 
+      task: text, 
+      status: 'Pending', 
+      date: new Date().toISOString().split('T')[0], 
+      followUp: new Date().toISOString().split('T')[0]
+    };
+    
     input.value = '';
-    if (!DB.jobs) DB.jobs = [];
-    DB.jobs.push({id:"TEMP-"+Date.now(), task:text, status:'Pending', date:new Date().toISOString().split('T')[0], followUp:new Date().toISOString().split('T')[0]});
+    dispatch('SAVE_JOB', newJob);
     renderJobs();
-    google.script.run.withSuccessHandler(res => { Object.assign(DB, JSON.parse(res)); renderJobs(); }).saveJob({action:'CREATE', task:text});
     return;
   }
-  const job = DB.jobs && DB.jobs.find(x => x.id===id);
+  
+  const job = DB.jobs && DB.jobs.find(x => String(x.id) === String(id));
   if (job) {
-    if (action==='SENT') { if(method==='WA') document.getElementById('lnk-wa-'+id).click(); if(method==='SMS') document.getElementById('lnk-sms-'+id).click(); job.status='Sent'; }
-    else if (action==='DONE') job.status='Done';
-    else if (action==='UNDO') job.status='Pending';
+    let newStatus = job.status;
+    
+    if (action==='SENT') { 
+      if(method==='WA') document.getElementById('lnk-wa-'+id).click(); 
+      if(method==='SMS') document.getElementById('lnk-sms-'+id).click(); 
+      newStatus = 'Sent'; 
+    }
+    else if (action==='DONE') newStatus = 'Done';
+    else if (action==='UNDO') newStatus = 'Pending';
+    
+    dispatch('UPDATE_JOB', { id: id, updates: { status: newStatus } });
     renderJobs();
-    google.script.run.withSuccessHandler(res => { Object.assign(DB, JSON.parse(res)); renderJobs(); }).saveJob({action:action, id:id});
   }
 }
 
+// 🔥 Engine-Powered Individual Follow Up
 export function sendJobFollowUp(id) {
-  const job = (DB.jobs||[]).find(j => j.id===id);
+  const job = (DB.jobs||[]).find(j => String(j.id) === String(id));
   if (!job) return;
+  
   const msg = '🔁 *Follow Up — ' + job.task + '*\n\nNilesh, is kaam ka status kya hai? Kab tak hoga?\n– Anjani Water';
   nileshWA(msg);
+  
   const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate()+1);
-  job.followUp = tomorrow.toLocaleDateString('en-CA');
-  job.status = 'Sent';
+  const tomorrowStr = tomorrow.toLocaleDateString('en-CA');
+  
+  dispatch('UPDATE_JOB', { id: id, updates: { followUp: tomorrowStr, status: 'Sent' } });
+  
   renderJobs();
   updateSmartBadge();
-  google.script.run.saveJob({action:'SENT', id:id});
 }
 
 function nileshWA(msg) {
@@ -214,13 +251,16 @@ export function sendMorningBrief() {
   const deliveries=(DB.orders||[]).filter(o => o.deliveryDate===today && o.status==='Pending');
   const jobs=(DB.jobs||[]).filter(j => j.status!=='Done');
   let stock=0; (DB.stock||[]).forEach(s => { stock+=(Number(s.produced)||0)-(Number(s.delivered)||0); });
+  
   let msg='🌅 *GOOD MORNING NILESH*\n📅 '+fmtDate+'\n\n';
   msg+='🚚 *DELIVERIES TODAY ('+deliveries.length+')*\n';
   deliveries.forEach((o,i) => { msg+=(i+1)+'. '+o.customer+' — '+o.boxes+' boxes\n   📍 '+(o.address||'No address')+'\n   🕐 '+(o.time||'Anytime')+'\n'; });
   if(!deliveries.length) msg+='No deliveries today\n';
+  
   msg+='\n📋 *PENDING TASKS ('+jobs.length+')*\n';
   jobs.forEach((j,i) => { msg+=(i+1)+'. '+j.task+'\n'; });
   if(!jobs.length) msg+='No pending tasks\n';
+  
   msg+='\n📦 *OPENING STOCK: '+stock+' units*\n\n✅ Reply when each delivery is done.\n– Anjani Water';
   nileshWA(msg);
 }
@@ -236,17 +276,22 @@ export function sendEveningReport() {
   const fmtDate=today.split('-').reverse().join('-');
   const delivered=(DB.orders||[]).filter(o => o.deliveryDate===today && o.status==='Delivered');
   const pending=(DB.orders||[]).filter(o => o.deliveryDate===today && o.status==='Pending');
+  
   const boxes=delivered.reduce((s,o) => s+(Number(o.boxes)||0), 0);
   const revenue=delivered.reduce((s,o) => s+(Number(o.amount)||0), 0);
   const collected=(DB.payments||[]).filter(p => p.date===today).reduce((s,p) => s+(Number(p.amount)||0), 0);
+  
   const doneJobs=(DB.jobs||[]).filter(j => j.status==='Done');
   const pendingJobs=(DB.jobs||[]).filter(j => j.status!=='Done');
+  
   let msg='🌙 *EVENING REPORT — '+fmtDate+'*\n\n';
   msg+='✅ *DELIVERED: '+delivered.length+' orders | '+boxes+' boxes*\n';
   delivered.forEach(o => { msg+='  • '+o.customer+' — '+o.boxes+' boxes\n'; });
   if(pending.length){msg+='\n⚠️ *STILL PENDING: '+pending.length+'*\n'; pending.forEach(o => { msg+='  • '+o.customer+' — '+o.boxes+' boxes\n'; });}
+  
   msg+='\n💰 *REVENUE TODAY: ₹'+revenue+'*\n💚 *CASH COLLECTED: ₹'+collected+'*\n\n📋 Tasks Done: '+doneJobs.length+' | Pending: '+pendingJobs.length+'\n';
   pendingJobs.forEach(j => { msg+='  • '+j.task+'\n'; });
+  
   msg+='\nPlease reply with closing stock count.\n– Anjani Water';
   nileshWA(msg);
 }
