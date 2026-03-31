@@ -3,7 +3,7 @@
 // ============================================================
 import { DB, CONFIG, STAFF_NUM } from './state.js';
 import { showToast } from './utils.js';
-import { enqueueAction, showOfflineToast } from './sync.js';
+import { dispatch } from './engine.js'; // 🔥 Powered by the Central Sync Engine!
 
 export function renderLeads() {
   const list = document.getElementById('list-leads');
@@ -14,6 +14,8 @@ export function renderLeads() {
   
   // 1. SMART FILTER
   const leads = (DB.leads || []).filter(l => {
+    // Filter out deleted leads just in case
+    if (l.deleted) return false; 
     const d = l.lastContact || l.createdDate || todayStr;
     return d >= sevenDaysAgo;
   }).sort((a,b) => { 
@@ -30,7 +32,7 @@ export function renderLeads() {
   
   let foundCount = 0;
   
-  // 🔥 THE FIX: Create an empty string to hold our HTML behind the scenes
+  // Create an empty string to hold our HTML behind the scenes
   let htmlBuffer = ''; 
 
   leads.forEach(l => {
@@ -72,11 +74,10 @@ export function renderLeads() {
     html += `<button onclick="runLeadAction('DELETE','${l.id}')" class="w-8 h-8 rounded-lg bg-red-50 text-red-600 border border-red-100 flex items-center justify-center hover:bg-red-100 active:scale-95 transition"><i data-feather="x" class="w-4 h-4"></i></button>`;
     html += '</div></div>';
     
-    // 🔥 THE FIX: Add the string to our buffer instead of updating the screen
     htmlBuffer += html; 
   });
   
-  // 🔥 THE FIX: Update the DOM exactly ONCE at the very end
+  // Update the DOM exactly ONCE at the very end
   if (!foundCount) {
     list.innerHTML = '<div class="text-center text-slate-300 text-xs py-10">No Leads Found</div>';
   } else {
@@ -89,118 +90,97 @@ export function renderLeads() {
   });
   try { feather.replace(); } catch(e){ console.warn('[feather]', e.message); }
 }
-export function addLead() {
-  const input = document.getElementById('lead-input');
-  const raw = input.value;
-  if (!raw) return alert("Please enter details");
-  
-  const btn = document.querySelector('button[onclick="addLead()"]');
-  if (btn) { btn.disabled = true; btn.innerText = "SAVING..."; }
-
-  const mobileMatch = raw.match(/\d{10}/);
-  const tempMobile = mobileMatch ? mobileMatch[0] : raw;
-  const newLead = {
-    id: 'LD-' + Date.now(),
-    mobile: tempMobile,
-    status: 'New',
-    createdDate: new Date().toISOString().split('T')[0], // 3. Set to createdDate so it matches Firebase
-    raw: raw
-  };
-
-  // ── OFFLINE path ──────────────────────────────────────────
-  if (!navigator.onLine) {
-    newLead._offline = true;
-    DB.leads.push(newLead);
-    renderLeads();
-    input.value = '';
-    if (btn) { btn.disabled = false; btn.innerText = "SAVE"; }
-    enqueueAction('saveLead', {raw: raw});
-    showOfflineToast('📦 Lead saved offline');
-    return;
-  }
-
-  // ── ONLINE path ───────────────────────────────────────────
-  google.script.run
-    .withSuccessHandler(function() {
-      if (typeof window._loadData === 'function') window._loadData(); 
-      input.value = '';
-      if (btn) { btn.disabled = false; btn.innerText = "SAVE"; }
-      showToast('✅ Lead saved successfully!');
-    })
-    .withFailureHandler(function(err) {
-      console.error("Lead Save Error:", err);
-      showToast('❌ Save failed — saved offline instead', true);
-      
-      newLead._offline = true;
-      DB.leads.push(newLead);
-      renderLeads();
-      input.value = '';
-      if (btn) { btn.disabled = false; btn.innerText = "SAVE"; }
-      enqueueAction('saveLead', {raw: raw});
-    })
-    .saveLead({raw: raw});
-}
 
 export function setLeadFilter(f) {
   window._leadFilter = f;
   renderLeads();
 }
 
+// 🔥 Engine-Powered Save Lead
+export function addLead() {
+  const input = document.getElementById('lead-input');
+  const raw = input.value;
+  if (!raw) return alert("Please enter details");
+
+  const mobileMatch = raw.match(/\d{10}/);
+  const tempMobile = mobileMatch ? mobileMatch[0] : raw;
+  
+  // 1. Package Payload
+  const newLead = {
+    id: 'LD-' + Date.now(),
+    mobile: tempMobile,
+    status: 'New',
+    createdDate: new Date().toISOString().split('T')[0], 
+    raw: raw
+  };
+
+  // 2. Clear Form
+  input.value = '';
+
+  // 3. Dispatch to Engine
+  dispatch('SAVE_LEAD', newLead);
+  showToast('✅ Lead saved successfully!');
+}
+
+// 🔥 Engine-Powered Lead Actions (Status Updates & Deletes)
 export function runLeadAction(action, id) {
   if (action === 'DELETE' && !confirm("Delete this lead permanently?")) return;
-  const row = document.querySelector(`[onclick*="${id}"]`)?.closest('div');
-  if (row) row.style.opacity = '0.5';
 
-  // ── OFFLINE path ──────────────────────────────────────────
-  if (!navigator.onLine) {
-    if (action === 'DELETE') DB.leads = DB.leads.filter(l => String(l.id) !== String(id));
-    else {
-      const l = DB.leads.find(x => String(x.id) === String(id));
-      if (l && action.startsWith('STATUS:')) l.status = action.split(':')[1];
-    }
+  // Handle immediate local UI removal for deletes
+  if (action === 'DELETE') {
+    DB.leads = DB.leads.filter(l => String(l.id) !== String(id));
+    dispatch('UPDATE_LEAD', { id: id, updates: { deleted: true } });
     renderLeads();
-    enqueueAction('handleLeadAction', {action, id});
-    showOfflineToast('✅ Action queued for offline sync');
     return;
   }
 
-  // ── ONLINE path ───────────────────────────────────────────
-  google.script.run
-    .withSuccessHandler(() => { 
-      if (typeof window._loadData === 'function') window._loadData(); 
-    })
-    .withFailureHandler((err) => {
-      console.error("Action error", err);
-      if (action === 'DELETE') DB.leads = DB.leads.filter(l => String(l.id) !== String(id));
-      else {
-        const l = DB.leads.find(x => String(x.id) === String(id));
-        if (l && action.startsWith('STATUS:')) l.status = action.split(':')[1];
-      }
-      renderLeads();
-      enqueueAction('handleLeadAction', {action, id});
-      showOfflineToast('❌ Failed online — queued for sync');
-    })
-    .handleLeadAction(action, id);
+  // Handle Status updates
+  let newStatus = null;
+  if (action.startsWith('STATUS:')) {
+    newStatus = action.split(':')[1];
+  } else if (action === 'CONVERT') {
+    newStatus = 'Converted';
+  }
+
+  if (newStatus) {
+    dispatch('UPDATE_LEAD', { id: id, updates: { status: newStatus } });
+  }
 }
 
-export function runArchive() {
+// 🔥 Firebase-Ready Utilities
+export async function runArchive() {
   if (!confirm(`Archive all 'New' leads older than ${CONFIG?.LEAD_ARCHIVE_DAYS || 30} days?`)) return;
-  google.script.run.withSuccessHandler((res) => { 
-    alert("Archived "+JSON.parse(res).count+" leads."); 
-    if (typeof window._loadData === 'function') window._loadData(); 
-  }).archiveOldLeads();
+  try {
+    if (window.FirebaseAPI) {
+      await window.FirebaseAPI.archiveOldLeads();
+      if (typeof window._loadData === 'function') window._loadData();
+      showToast('✅ Old leads archived');
+    }
+  } catch(e) {
+    console.error("Archive error:", e);
+    showToast('❌ Error archiving leads', true);
+  }
 }
 
-export function runCombo() {
+export async function runCombo() {
   const btn = document.querySelector('button[onclick="runCombo()"]');
   const orgHtml = btn.innerHTML;
-  btn.innerHTML = '<i data-feather="loader" class="w-4 h-4 animate-spin"></i> RUNNING...'; btn.disabled = true;
-  google.script.run.withSuccessHandler((res) => {
+  btn.innerHTML = '<i data-feather="loader" class="w-4 h-4 animate-spin"></i> RUNNING...'; 
+  btn.disabled = true;
+  
+  try {
+    if (window.FirebaseAPI) {
+      await window.FirebaseAPI.runComboActions();
+      if (typeof window._loadData === 'function') window._loadData();
+    }
     btn.innerHTML = '<i data-feather="check" class="w-4 h-4"></i> COMPLETED!';
     btn.classList.replace('bg-indigo-600', 'bg-green-600'); 
-    if (typeof window._loadData === 'function') window._loadData();
     setTimeout(() => { btn.innerHTML = orgHtml; btn.classList.replace('bg-green-600','bg-indigo-600'); btn.disabled = false; feather.replace(); }, 3000);
-  }).runComboActions();
+  } catch(e) {
+    console.error("Combo error:", e);
+    btn.innerHTML = orgHtml; btn.disabled = false; feather.replace();
+    showToast('❌ Failed to run combo actions', true);
+  }
 }
 
 // ── Fallback stub for HTML button to prevent ReferenceErrors ──
