@@ -414,10 +414,16 @@
 <!-- ══════════════════════════════════════════════════════════════
      LOGIN SCREEN — untouched, app.js controls this
 ══════════════════════════════════════════════════════════════ -->
-<div id="login-screen"
-     class="fixed inset-0 z-[10000] flex flex-col items-center justify-center bg-sky-900">
+<div id="login-screen" class="fixed inset-0 z-[10000] flex flex-col items-center justify-center bg-sky-900">
+  <div class="p-8 rounded-3xl w-80 bg-white shadow-2xl text-center">
+    <div class="mb-6"><div class="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto shadow-lg"><span class="text-3xl">💧</span></div></div>
+    <h2 class="text-2xl font-bold text-slate-800 mb-1">Anjani Water</h2>
+    <p class="text-slate-500 text-sm mb-6">Enter PIN to access</p>
+    <input type="text" id="pin-input" maxlength="4" inputmode="numeric" placeholder="0000" autocomplete="off" class="w-full text-center text-4xl font-black tracking-[0.5em] border-b-4 border-slate-200 focus:border-blue-600 rounded-none py-4 mb-4 focus:outline-none transition-all text-slate-800" onkeypress="if(event.key==='Enter') handleLogin()">
+    <button id="btn-login" onclick="handleLogin()" class="w-full bg-slate-900 text-white font-bold text-lg py-3 rounded-xl shadow-lg active:scale-95 transition-transform">VERIFY PIN 🔒</button>
+    <p id="pin-error" class="mt-3 text-red-500 text-xs font-bold h-5 opacity-0 transition-opacity">⛔ INCORRECT PIN</p>
+  </div>
 </div>
-
 <!-- ══════════════════════════════════════════════════════════════
      SCRIPTS — 100% identical to original, nothing changed
 ══════════════════════════════════════════════════════════════ -->
