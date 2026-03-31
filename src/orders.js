@@ -244,7 +244,6 @@ export async function placeOrder(e) {
 
   const cid = document.getElementById('ord-cust').value;
   
-  // 1. STRICT VALIDATION: Stop immediately if no customer is selected
   if (!cid || cid === "NEW") {
     alert("⚠️ Please select a valid customer first.");
     document.getElementById('ord-cust').focus();
@@ -252,12 +251,9 @@ export async function placeOrder(e) {
   }
 
   const c = DB.customers.find(x => x.id == cid) || {};
-  
-  // Recalculate safely instead of parsing the text from the UI
   const safeQty = Number(document.getElementById('ord-qty').value) || 0;
   const safeRate = Number(document.getElementById('ord-rate').value) || 0;
   
-  // 2. DATA SANITIZATION: Prevent 'undefined' or 'NaN' from crashing Firebase
   const data = {
     id:           'ORD-' + Date.now(),
     clientId:     cid,
@@ -276,7 +272,6 @@ export async function placeOrder(e) {
     status:       'Pending'
   };
 
-  // ── OFFLINE path ──────────────────────────────────────────
   if (!navigator.onLine) {
     data._offline = true;
     DB.orders.push(data);
@@ -288,20 +283,23 @@ export async function placeOrder(e) {
     return;
   }
 
-  // ── ONLINE path (FIREBASE) ────────────────────────────────
   btn.disabled = true;
   btn.innerText = "SAVING...";
 
   try {
+    // 🔥 1. INSTANT UI UPDATE: Show it before Firebase even replies
+    DB.orders.push(data);
+    window._highlightID = data.id;
+    if (typeof render === 'function') render();
+    
+    e.target.reset();
+    document.getElementById('ord-date').value = new Date().toISOString().split('T')[0];
+
+    // 🔥 2. Quietly push to Firebase in the background
     if (window.FirebaseAPI) {
       await window.FirebaseAPI.saveOrder(data);
     }
     
-    window._highlightID = data.id;
-    if (typeof window._loadData === 'function') window._loadData();
-    
-    e.target.reset();
-    document.getElementById('ord-date').value = new Date().toISOString().split('T')[0];
     btn.disabled = false;
     btn.innerText = "CONFIRM ORDER";
   } catch (err) {
@@ -309,9 +307,8 @@ export async function placeOrder(e) {
     btn.disabled = false;
     btn.innerText = "CONFIRM ORDER";
     showToast('❌ Save failed — saved offline instead', true);
+    // Already in local DB, just queue it for sync
     data._offline = true;
-    DB.orders.push(data);
-    if (typeof render === 'function') render();
     enqueueAction('saveOrder', data);
   }
 }
@@ -333,23 +330,26 @@ export async function saveOrderEdit(id) {
     return;
   }
 
-  if (o) { o.boxes = qty; o.deliveryDate = date; o.time = time; o.address = address; }
   if (btn) {
     const orig = btn.innerHTML;
     btn.innerHTML = '<i data-feather="loader" class="w-4 h-4 animate-spin"></i>'; 
     btn.disabled = true;
     
     try {
+      // 🔥 1. INSTANT UI UPDATE
+      if (o) { o.boxes = qty; o.deliveryDate = date; o.time = time; o.address = address; }
+      
+      // 🔥 2. Push to Firebase
       if (window.FirebaseAPI) {
         await window.FirebaseAPI.updateOrderStatus(id, null, qty, date, time, address);
       }
       
+      if (typeof render === 'function') render();
       btn.innerHTML = '<i data-feather="check" class="w-4 h-4 text-green-600"></i>';
-      setTimeout(() => { btn.innerHTML = orig; btn.disabled = false; feather.replace(); }, 1500);
+      setTimeout(() => { if(btn){ btn.innerHTML = orig; btn.disabled = false; feather.replace(); } }, 1500);
       updMsg(id);
     } catch (e) {
-      btn.innerHTML = '<i data-feather="x" class="w-4 h-4 text-red-500"></i>';
-      btn.disabled = false; feather.replace();
+      if(btn){ btn.innerHTML = '<i data-feather="x" class="w-4 h-4 text-red-500"></i>'; btn.disabled = false; feather.replace(); }
       showToast('❌ Save failed: ' + e.message, true);
     }
   }
@@ -363,7 +363,6 @@ export async function doDel(id) {
   const address = document.getElementById('a-' + id).value;
   const btn     = document.querySelector(`button[onclick="doDel('${id}')"]`);
 
-  // ── OFFLINE path ──────────────────────────────────────────
   if (!navigator.onLine) {
     const o = DB.orders.find(x => String(x.id) === String(id));
     if (o) { o.status = 'Delivered'; o.boxes = qty; o.deliveryDate = date; o._offline = true; }
@@ -373,14 +372,18 @@ export async function doDel(id) {
     return;
   }
 
-  // ── ONLINE path (FIREBASE) ────────────────────────────────
   if (btn) btn.innerText = "SAVING...";
   
   try {
+    // 🔥 1. INSTANT UI UPDATE
+    const o = DB.orders.find(x => String(x.id) === String(id));
+    if (o) { o.status = 'Delivered'; o.boxes = qty; o.deliveryDate = date; }
+    if (typeof render === 'function') render();
+
+    // 🔥 2. Push to Firebase
     if (window.FirebaseAPI) {
       await window.FirebaseAPI.updateOrderStatus(id, "Delivered", qty, date, time, address);
     }
-    if (typeof window._loadData === 'function') window._loadData();
   } catch (err) {
     if (btn) btn.innerText = "DELIVER →";
     const o = DB.orders.find(x => String(x.id) === String(id));
