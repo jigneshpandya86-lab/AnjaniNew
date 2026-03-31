@@ -205,6 +205,7 @@ window.addEventListener('offline', () => { updateOnlineStatus(); showOfflineToas
 // ── Boot Sequence with Data Gate & Safe Timeout ──────────────
 // ── Boot Sequence with Data Gate & Safe Timeout ──────────────
 // ── Boot Sequence with Data Gate & Safe Timeout ──────────────
+// ── Boot Sequence with Data Gate & Safe Timeout ──────────────
 async function startApp() {
   const loader = document.getElementById('loader');
   const debugLog = document.getElementById('debug-log');
@@ -213,19 +214,27 @@ async function startApp() {
   const session = localStorage.getItem('anjani_session');
 
   if (session) {
-    // 🟢 LOGGED IN: Wait for Firebase Auth to "Wake Up" first!
+    // 🟢 FORCE the loader to stay visible while we authenticate
+    if (loader) loader.classList.remove('hidden');
+
+    // 1. Wait for Firebase to produce the actual User Token
     const auth = getAuth();
     await new Promise((resolve) => {
       const unsubscribe = onAuthStateChanged(auth, (user) => {
-        resolve(); // Firebase is awake!
-        unsubscribe(); // Stop listening
+        // THE FIX: Only move forward if Firebase confirms you are logged in
+        if (user) {
+          resolve(); 
+          unsubscribe(); // Stop listening once verified
+        }
       });
+      // Safety net: If totally offline, stop waiting after 3 seconds
+      setTimeout(() => { resolve(); }, 3000);
     });
 
-    // NOW run the Data Gate
+    // 2. NOW run the Data Gate
     try {
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("Network Timeout")), 5000)
+        setTimeout(() => reject(new Error("Network Timeout")), 6000)
       );
 
       if (typeof window._loadData === 'function') {
@@ -241,7 +250,7 @@ async function startApp() {
       }
     }
 
-    // Render UI and hide Splash Screen
+    // 3. Render UI and FINALLY hide Splash Screen
     if (typeof window._render === 'function') window._render();
     if (typeof window._renderDashboard === 'function') window._renderDashboard();
     if (loader) loader.classList.add('hidden');
