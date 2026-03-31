@@ -203,44 +203,48 @@ window.addEventListener('offline', () => { updateOnlineStatus(); showOfflineToas
 
 // ── Boot ─────────────────────────────────────────────────────
 // ── Boot Sequence with Data Gate & Safe Timeout ──────────────
+// ── Boot Sequence with Data Gate & Safe Timeout ──────────────
 async function startApp() {
   const loader = document.getElementById('loader');
   const debugLog = document.getElementById('debug-log');
   const loginScreen = document.getElementById('login-screen');
 
-  try {
-    // 1. Safe Timeout: 5-Second Stopwatch
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("Network Timeout")), 5000)
-    );
-
-    // 2. Race Firebase Download vs the Stopwatch
-    if (typeof window._loadData === 'function') {
-      await Promise.race([window._loadData(), timeoutPromise]);
-      console.log("✅ Data Gate Passed. App Ready.");
-    }
-  } catch (err) {
-    console.warn("⏳ Network slow or Offline. Booting from local cache...", err);
-    if (debugLog) {
-      debugLog.innerText = "Network slow. Using offline cache...";
-      debugLog.classList.remove('hidden');
-      setTimeout(() => debugLog.classList.add('hidden'), 3000);
-    }
-  }
-
-  // 3. Run legacy initialization if needed
-  if (typeof initApp === 'function') initApp();
-
-  // 4. Check PIN Status
+  // 1. Check if the user is already logged in FIRST
   const session = localStorage.getItem('anjani_session');
+
   if (session) {
-    // Logged in: Hide Splash Screen, show Dashboard
+    // 🟢 LOGGED IN: Run the Data Gate to fetch fresh data
+    try {
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Network Timeout")), 5000)
+      );
+
+      if (typeof window._loadData === 'function') {
+        await Promise.race([window._loadData(), timeoutPromise]);
+        console.log("✅ Data Gate Passed. App Ready.");
+      }
+    } catch (err) {
+      console.warn("⏳ Network slow or Offline. Booting from local cache...", err);
+      if (debugLog) {
+        debugLog.innerText = "Network slow. Using offline cache...";
+        debugLog.classList.remove('hidden');
+        setTimeout(() => debugLog.classList.add('hidden'), 3000);
+      }
+    }
+
+    // Render UI and hide Splash Screen
+    if (typeof window._render === 'function') window._render();
+    if (typeof window._renderDashboard === 'function') window._renderDashboard();
     if (loader) loader.classList.add('hidden');
+
   } else {
-    // Not logged in: Show Login Screen, Hide Splash Screen
+    // 🔴 NOT LOGGED IN: Skip data fetch, go straight to PIN screen
     if (loginScreen) loginScreen.classList.remove('hidden');
     if (loader) loader.classList.add('hidden');
   }
+
+  // Run legacy initialization if needed
+  if (typeof initApp === 'function') initApp();
 }
 
 // Fire the engine when the HTML loads
