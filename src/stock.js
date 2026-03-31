@@ -3,39 +3,40 @@
 // ============================================================
 import { DB } from './state.js';
 import { setText, showToast } from './utils.js';
-import { enqueueAction, showOfflineToast } from './sync.js';
+import { dispatch } from './engine.js'; // 🔥 Powered by the Central Sync Engine!
 
 export function renderStockPage() {
   const todayStr = new Date().toISOString().split('T')[0];
-const skuTotals = { '200ml':0, '500ml':0, '1L':0, 'cd':0 };
-let netStock = 0, allTimeProd = 0, todayProd = 0, todayDel = 0;
+  const skuTotals = { '200ml':0, '500ml':0, '1L':0, 'cd':0 };
+  let netStock = 0, allTimeProd = 0, todayProd = 0, todayDel = 0;
 
-// Step 1: Add all production per SKU (ignore old 'delivered' field on stock rows)
-// Single source of truth: DB.stock produced & delivered columns only
-(DB.stock || []).forEach(function(s) {
-  const prod = Number(s.produced) || 0;
-  const del  = Number(s.delivered) || 0;
-  const sku  = s.sku || '200ml';
-  skuTotals[sku] = (skuTotals[sku] || 0) + prod - del;
-  allTimeProd += prod;
-  if (s.date === todayStr) { todayProd += prod; todayDel += del; }
-});
+  // Step 1: Add all production per SKU (ignore old 'delivered' field on stock rows)
+  // Single source of truth: DB.stock produced & delivered columns only
+  (DB.stock || []).forEach(function(s) {
+    const prod = Number(s.produced) || 0;
+    const del  = Number(s.delivered) || 0;
+    const sku  = s.sku || '200ml';
+    skuTotals[sku] = (skuTotals[sku] || 0) + prod - del;
+    allTimeProd += prod;
+    if (s.date === todayStr) { todayProd += prod; todayDel += del; }
+  });
 
-// Net stock = sum of all SKU balances
-netStock = Object.values(skuTotals).reduce((a, b) => a + b, 0);
+  // Net stock = sum of all SKU balances
+  netStock = Object.values(skuTotals).reduce((a, b) => a + b, 0);
 
   // Update KPIs
   setText('stat-stock', netStock);
   const skuNames = { '200ml':'💧 200ml', '500ml':'💧 500ml', '1L':'💧 1L', 'cd':'🥤 Cold Drink' };
-const skuEl = document.getElementById('sku-stock-breakdown');
-if (skuEl) {
-  skuEl.innerHTML = Object.entries(skuTotals).map(([k,v]) =>
-    `<div class="flex justify-between text-xs font-bold py-1 border-b border-slate-100">
-       <span class="text-slate-500">${skuNames[k]}</span>
-       <span class="${v < 100 ? 'text-red-500' : 'text-slate-700'}">${v} units</span>
-     </div>`
-  ).join('');
-}
+  const skuEl = document.getElementById('sku-stock-breakdown');
+  if (skuEl) {
+    skuEl.innerHTML = Object.entries(skuTotals).map(([k,v]) =>
+      `<div class="flex justify-between text-xs font-bold py-1 border-b border-slate-100">
+         <span class="text-slate-500">${skuNames[k]}</span>
+         <span class="${v < 100 ? 'text-red-500' : 'text-slate-700'}">${v} units</span>
+       </div>`
+    ).join('');
+  }
+  
   setText('stat-today-prod', todayProd);
   setText('stat-today-del', todayDel);
 
@@ -45,6 +46,7 @@ if (skuEl) {
   const bar = document.getElementById('stock-bar');
   const label = document.getElementById('stock-level-label');
   const barMax = document.getElementById('stock-bar-max');
+  
   if (bar) {
     bar.style.width = pct + '%';
     if (netStock < 500) {
@@ -66,7 +68,6 @@ if (skuEl) {
     const recent = (DB.stock || []).slice().sort((a, b) => {
       // Helper: If date is DD-MM-YYYY, flip it to YYYY-MM-DD so it sorts correctly
       const format = (d) => (d && d.indexOf('-') === 2) ? d.split('-').reverse().join('-') : (d || '');
-      
       // Sort descending (Newest first)
       return format(b.date).localeCompare(format(a.date));
     }).slice(0, 15);
@@ -75,6 +76,7 @@ if (skuEl) {
       slist.innerHTML = '<div class="p-6 text-center text-slate-400 text-xs">No stock records yet</div>';
       return;
     }
+    
     slist.innerHTML = recent.map(function(s) {
       const isProd = Number(s.produced) > 0;
       const val = isProd ? '+' + s.produced : '-' + s.delivered;
@@ -82,6 +84,7 @@ if (skuEl) {
       const icon = isProd ? '🏭' : '🚚';
       const desc = s.customer ? esc(s.customer) : (isProd ? 'Production' : 'Delivery');
       const isToday = s.date === todayStr;
+      
       return `<div class="p-3 flex justify-between items-center hover:bg-slate-50 ${isToday ? 'bg-blue-50/30' : ''}">
         <div class="flex items-center gap-2">
           <span class="text-base">${icon}</span>
@@ -102,41 +105,33 @@ export function setStockQty(n) {
   if (inp) inp.value = n;
 }
 
+// 🔥 Engine-Powered Save Stock
 export function saveStock() {
-  const qty = document.getElementById('prod-val').value;
+  const qtyInput = document.getElementById('prod-val');
+  const qty = Number(qtyInput.value);
+  
   if (!qty || qty <= 0) return;
-  const sku     = document.getElementById('prod-sku').value || '200ml';
-  const prodData = { qty: qty, sku: sku };
+  
+  const sku = document.getElementById('prod-sku').value || '200ml';
 
-  // ── OFFLINE path ──────────────────────────────────────────
-  if (!navigator.onLine) {
-    DB.stock.push({
-      date:     new Date().toISOString().split('T')[0],
-      produced: qty, delivered: 0, sku: sku, _offline: true
-    });
-    renderStockPage();
-    document.getElementById('prod-val').value = '';
-    enqueueAction('saveProduction', prodData);
-    showOfflineToast('📦 Stock +' + qty + ' (' + sku + ') saved offline');
-    return;
-  }
+  // 1. Package the payload (Includes fields for both Firebase and Local UI)
+  const stockData = {
+    id:        'STK-' + Date.now(),
+    qty:       qty,                                      // For Firebase compatibility
+    sku:       sku,                                      // For Firebase compatibility
+    date:      new Date().toISOString().split('T')[0],   // For Local Memory/Render
+    produced:  qty,                                      // For Local Memory/Render
+    delivered: 0                                         // For Local Memory/Render
+  };
 
-  // ── ONLINE path ───────────────────────────────────────────
-  google.script.run
-    .withSuccessHandler(() => {
-      if (typeof window._loadData === 'function') window._loadData();
-      document.getElementById('prod-val').value = '';
-      showToast('✅ ' + qty + ' units added to stock!');
-    })
-    .withFailureHandler(() => {
-      // Fallback offline
-      DB.stock.push({ date: new Date().toISOString().split('T')[0], produced: qty, delivered: 0, sku, _offline: true });
-      renderStockPage();
-      document.getElementById('prod-val').value = '';
-      enqueueAction('saveProduction', prodData);
-      showOfflineToast('📦 Stock saved offline — will sync later');
-    })
-    .saveProduction(prodData);
+  // 2. Clear the form instantly
+  qtyInput.value = '';
+
+  // 3. Hand it to the Central Engine!
+  dispatch('SAVE_STOCK', stockData);
+
+  // 4. Show a friendly toast notification
+  showToast(`✅ ${qty} units (${sku}) added to stock!`);
 }
 
 function esc(str) {
