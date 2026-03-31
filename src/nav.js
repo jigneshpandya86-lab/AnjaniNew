@@ -132,6 +132,9 @@ window.go = go;
 // ======================================================================
 // LOGIN HANDLER (PIN -> FIREBASE BRIDGE)
 // ======================================================================
+// ======================================================================
+// LOGIN HANDLER (PIN -> FIREBASE BRIDGE)
+// ======================================================================
 export async function handleLogin(e) {
   if (e) e.preventDefault();
   
@@ -144,42 +147,26 @@ export async function handleLogin(e) {
   if (pin === "9999") {
     if (errorMsg) {
       errorMsg.innerText = "AUTHENTICATING...";
-      errorMsg.style.opacity = '1';
       errorMsg.classList.remove('text-red-500');
       errorMsg.classList.add('text-blue-500');
+      errorMsg.style.opacity = '1';
     }
 
     try {
-      // 1. Immediately show the Data Gate Splash Screen over the login box
+      // 1. Show the Loading Splash Screen
       if (loader) loader.classList.remove('hidden');
 
       // 2. Secretly log into Firebase
       const auth = getAuth();
       await signInWithEmailAndPassword(auth, "admin@anjaniwater.in", "Anjani@2026");
+      
+      // 3. Save the session token
       localStorage.setItem('anjani_session', 'active');
 
-      // 3. Give Firebase 0.5 seconds to register the new login token
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      // 4. NOW fetch the data AND wait for it to finish!
-      if (typeof window._loadData === 'function') {
-        await window._loadData();
-      } else if (typeof loadData === 'function') {
-        await loadData(); 
-      }
-
-      // 5. Data is loaded! Hide Login and Loader screens
-      const loginScreen = document.getElementById('login-screen') || document.getElementById('page-login');
-      if (loginScreen) loginScreen.classList.add('hidden');
-      if (loader) loader.classList.add('hidden');
-      
-      const appLayout = document.getElementById('app-layout') || document.querySelector('.flex.h-screen');
-      if (appLayout) appLayout.classList.remove('hidden');
-
-      // 6. Send the user to the fully populated dashboard
-      if (typeof window.go === 'function') {
-        window.go('dashboard');
-      }
+      // 4. THE MAGIC FIX: Reload the app!
+      // This forces the app to do a clean boot as an authenticated user.
+      // It will trigger startApp(), wait for Firebase, and fetch data perfectly.
+      window.location.reload();
 
     } catch (error) {
       if (loader) loader.classList.add('hidden');
