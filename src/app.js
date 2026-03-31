@@ -8,7 +8,7 @@
 //  3. Exposes render callbacks via window._xxx (for nav/sync cross-calls)
 //  4. Calls initApp() on DOMContentLoaded
 // ============================================================
-
+import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { DB } from './state.js';
 
 import { handleLogin, initApp, loadData, go } from './nav.js';
