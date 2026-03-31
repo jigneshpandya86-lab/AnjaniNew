@@ -5,7 +5,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="theme-color" content="#0c4a6e">
+  <meta name="theme-color" content="#131921">
   <base target="_top">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>ANJANI</title>
@@ -35,97 +35,525 @@
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 
   <style>
+    /* ══════════════════════════════════════════════════════════
+       AMAZON.IN COLOR TOKENS
+    ══════════════════════════════════════════════════════════ */
     :root {
-      --water-deep:   #0c4a6e;
-      --water-mid:    #0369a1;
-      --water-light:  #38bdf8;
-      --water-pale:   #e0f2fe;
-      --ripple:       rgba(14,165,233,0.08);
-      --text-primary: #0c2340;
-      --text-muted:   #64748b;
+      --amz-navy:      #131921;
+      --amz-bar:       #232f3e;
+      --amz-orange:    #ff9900;
+      --amz-orange-lt: #febd69;
+      --amz-link:      #007185;
+      --amz-bg:        #eaeded;
+      --amz-white:     #ffffff;
+      --amz-border:    #dddddd;
+      --amz-text:      #0f1111;
+      --amz-muted:     #565959;
+      --amz-green:     #007600;
+      --amz-red:       #b12704;
+      --nav-height:    4rem;
     }
-    /* Safe Area Padding for modern mobile screens */
-    .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
-    
-    .pac-container { z-index: 100000 !important; border-radius: 12px; box-shadow: 0 10px 30px rgba(12,74,110,0.12); }
+
+    /* ── Body ──────────────────────────────────────────────── */
     body {
-      font-family: 'Nunito', -apple-system, sans-serif;
+      font-family: Arial, sans-serif;
+      background: var(--amz-bg);
+      color: var(--amz-text);
       -webkit-tap-highlight-color: transparent;
-      background: #f8fafc;
-      overscroll-behavior: none; /* Prevents "pull to refresh" on Chrome Android */
+      overscroll-behavior: none;
     }
     .no-scrollbar::-webkit-scrollbar { display: none; }
-    .nav-item.active { background: linear-gradient(135deg, #e0f2fe, rgba(14,165,233,0.12)); color: #0369a1; border-right: 3px solid #38bdf8; font-weight: 800; }
-    .mob-item.active { color: #0369a1; font-weight: 900; }
-    
-    #offline-banner { display: none; position: fixed; top: 0; left: 0; right: 0; z-index: 9999; background: #f59e0b; color: white; text-align: center; font-size: 11px; padding: 6px; }
+
+    /* ── Google Places dropdown ────────────────────────────── */
+    .pac-container {
+      z-index: 100000 !important;
+      border-radius: 4px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       DESKTOP SIDEBAR
+    ══════════════════════════════════════════════════════════ */
+    .amz-sidebar {
+      width: 210px;
+      background: var(--amz-navy);
+      color: #fff;
+      flex-shrink: 0;
+    }
+    .sidebar-logo {
+      background: var(--amz-navy);
+      border-bottom: 2px solid var(--amz-orange);
+      padding: 16px 18px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .sidebar-logo .brand {
+      font-size: 1.15rem;
+      font-weight: 900;
+      color: #fff;
+      letter-spacing: 0.5px;
+    }
+    .sidebar-logo .brand span { color: var(--amz-orange); }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      padding: 11px 18px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #ccc;
+      border-left: 3px solid transparent;
+      transition: background 0.14s, color 0.14s, border-color 0.14s;
+      background: none;
+      cursor: pointer;
+    }
+    .nav-item:hover {
+      background: rgba(255,255,255,0.07);
+      color: #fff;
+    }
+    .nav-item.active {
+      background: rgba(255,153,0,0.13);
+      color: var(--amz-orange);
+      border-left-color: var(--amz-orange);
+      font-weight: 700;
+    }
+    .nav-item.active svg { stroke: var(--amz-orange) !important; }
+    .nav-divider {
+      height: 1px;
+      background: rgba(255,255,255,0.08);
+      margin: 6px 0;
+    }
+    .sidebar-footer {
+      border-top: 1px solid rgba(255,255,255,0.08);
+      padding: 12px 18px;
+      font-size: 11px;
+      color: #999;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       MOBILE TOP BARS
+    ══════════════════════════════════════════════════════════ */
+    /* Tier 1 — dark navy */
+    .amz-topbar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 52px;
+      background: var(--amz-navy);
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      gap: 8px;
+      z-index: 40;
+    }
+    .amz-topbar .brand {
+      flex: 1;
+      font-size: 1.1rem;
+      font-weight: 900;
+      color: #fff;
+    }
+    .amz-topbar .brand span { color: var(--amz-orange); }
+    .amz-topbar .date-pill {
+      background: var(--amz-bar);
+      color: var(--amz-orange-lt);
+      font-size: 10px;
+      font-weight: 700;
+      padding: 3px 9px;
+      border-radius: 3px;
+      border: 1px solid rgba(255,153,0,0.25);
+    }
+    .amz-topbar .icon-btn {
+      background: none;
+      border: none;
+      color: #fff;
+      padding: 4px;
+      cursor: pointer;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Tier 2 — secondary bar ("Deliver to") */
+    .amz-subbar {
+      position: fixed;
+      top: 52px; left: 0; right: 0;
+      height: 26px;
+      background: var(--amz-bar);
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      gap: 4px;
+      font-size: 10px;
+      color: #bbb;
+      z-index: 39;
+    }
+    .amz-subbar svg { width: 11px; height: 11px; stroke: var(--amz-orange-lt); flex-shrink:0; }
+    .amz-subbar strong { color: #fff; font-size: 11px; }
+
+    /* ══════════════════════════════════════════════════════════
+       MOBILE BOTTOM NAV — all fixes applied
+    ══════════════════════════════════════════════════════════ */
+    .bottom-nav {
+      background: var(--amz-white);
+      border-top: 1px solid var(--amz-border);
+      box-shadow: 0 -2px 8px rgba(0,0,0,0.10);
+      /* FIX: own GPU compositing layer — prevents ghost clicks */
+      transform: translateZ(0);
+      -webkit-transform: translateZ(0);
+      will-change: transform;
+      pointer-events: auto;
+    }
+    /* FIX: each button — kill 300ms tap delay, min touch target */
+    .bottom-nav button {
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      cursor: pointer;
+      min-height: 44px;
+      user-select: none;
+      -webkit-user-select: none;
+      background: none;
+      border: none;
+      color: var(--amz-muted);
+      transition: color 0.12s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      flex: 1;
+      padding-top: 8px;
+    }
+    .bottom-nav button.active { color: var(--amz-navy); }
+    .bottom-nav button.active svg { stroke: var(--amz-orange) !important; }
+    /* Amazon-style orange dot indicator */
+    .nav-dot {
+      display: none;
+      width: 4px; height: 4px;
+      border-radius: 50%;
+      background: var(--amz-orange);
+      margin-top: 1px;
+    }
+    .bottom-nav button.active .nav-dot { display: block; }
+
+    /* ══════════════════════════════════════════════════════════
+       MAIN CONTENT — must clear both fixed bars + bottom nav
+    ══════════════════════════════════════════════════════════ */
+    .main-content {
+      /* mobile: 52px topbar + 26px subbar = 78px */
+      padding-top: 78px;
+      /* bottom: nav-height + home indicator + gap */
+      padding-bottom: calc(var(--nav-height) + env(safe-area-inset-bottom, 0px) + 0.5rem);
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-y;
+      background: var(--amz-bg);
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       FAB — z BELOW nav so it never intercepts taps
+    ══════════════════════════════════════════════════════════ */
+    .fab-refresh {
+      position: fixed;
+      right: 16px;
+      /* clears nav + safe area + gap */
+      bottom: calc(var(--nav-height) + env(safe-area-inset-bottom, 0px) + 0.75rem);
+      width: 48px; height: 48px;
+      border-radius: 50%;
+      background: var(--amz-orange);
+      color: var(--amz-navy);
+      border: 2px solid var(--amz-orange-lt);
+      box-shadow: 0 4px 14px rgba(255,153,0,0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 89; /* BELOW nav z-[150] */
+      cursor: pointer;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      transition: transform 0.12s;
+    }
+    .fab-refresh:active { transform: scale(0.90); }
+
+    /* Desktop FAB position override */
+    @media (min-width: 1024px) {
+      .fab-refresh { bottom: 2rem; right: 2rem; }
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       OFFLINE BANNER
+    ══════════════════════════════════════════════════════════ */
+    #offline-banner {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 9999;
+      background: var(--amz-red);
+      color: #fff;
+      text-align: center;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 6px;
+    }
     body.is-offline #offline-banner { display: block; }
-    
-    /* Ensure loader doesn't block clicks when hidden */
+
+    /* ══════════════════════════════════════════════════════════
+       LOADER — Amazon dark splash
+    ══════════════════════════════════════════════════════════ */
+    #loader {
+      background: var(--amz-navy);
+    }
+    #loader .ld-brand {
+      font-size: 2rem;
+      font-weight: 900;
+      color: #fff;
+      letter-spacing: 1px;
+    }
+    #loader .ld-brand span { color: var(--amz-orange); }
+    #loader .ld-sub {
+      color: var(--amz-orange-lt);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 4px;
+      margin-top: 6px;
+    }
+    #loader .ld-track {
+      width: 180px;
+      height: 3px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 99px;
+      overflow: hidden;
+      margin-top: 20px;
+    }
+    #loader .ld-fill {
+      height: 100%;
+      background: var(--amz-orange);
+      border-radius: 99px;
+      animation: amzbar 1.6s ease-in-out infinite;
+    }
+    @keyframes amzbar {
+      0%   { width: 0%;  margin-left: 0;    }
+      50%  { width: 65%; margin-left: 0;    }
+      100% { width: 0%;  margin-left: 100%; }
+    }
     #loader.hidden { display: none !important; pointer-events: none; }
+
+    /* Sync badge */
+    #sync-badge {
+      background: var(--amz-red);
+      color: #fff;
+      border-radius: 3px;
+      padding: 4px 10px;
+      font-size: 10px;
+      font-weight: 700;
+      position: fixed;
+      right: 16px;
+      z-index: 60;
+    }
+
+    /* safe-area bottom helper */
+    .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+
+    /* Smart badge */
+    .amz-badge {
+      background: var(--amz-red);
+      color: #fff;
+      font-size: 9px;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 3px;
+      line-height: 1.4;
+    }
   </style>
 </head>
-<body class="bg-slate-50 text-slate-800 h-screen w-screen overflow-hidden flex flex-col lg:flex-row">
 
-<div id="offline-banner">⚡ OFFLINE MODE — Changes will sync when connected</div>
-<div id="sync-badge" style="display:none; position:fixed; bottom:88px; right:16px; z-index:60; background:#f59e0b; color:white; border-radius:999px; padding:4px 10px; font-size:10px; font-weight:bold;">🔄 <span id="sync-count">0</span> queued</div>
+<!-- ═══════════════════════════════════════════════════════════════
+     BODY
+════════════════════════════════════════════════════════════════ -->
+<body class="h-screen w-screen overflow-hidden flex flex-col lg:flex-row">
 
-<div id="loader" class="fixed inset-0 bg-white/95 backdrop-blur-sm z-[200] flex flex-col items-center justify-center">
-  <div class="text-5xl mb-4 text-blue-600 animate-spin">🌀</div>
-  <div class="font-bold text-slate-500 text-sm">LOADING SYSTEM...</div>
-  <div id="debug-log" class="mt-6 text-xs text-red-600 hidden max-w-xs text-center"></div>
-</div>
+  <!-- Offline indicator -->
+  <div id="offline-banner">⚡ OFFLINE MODE — Changes will sync when connected</div>
 
-<aside class="hidden lg:flex w-64 bg-white flex-col h-full border-r border-sky-100 z-20">
-  <div class="h-20 flex items-center px-6 border-b">
-    <h1 class="font-black text-xl tracking-wide text-sky-900">ANJANI<span class="text-sky-500">WATER</span></h1>
+  <!-- Pending-sync badge -->
+  <div id="sync-badge" style="display:none; bottom: calc(4rem + env(safe-area-inset-bottom,0px) + 5rem);">
+    🔄 <span id="sync-count">0</span> queued
   </div>
-  <nav class="flex-1 py-6 space-y-1">
-    <button onclick="go('orders')" id="d-btn-orders" class="nav-item active w-full flex items-center px-6 py-4 font-bold text-sm"><i data-feather="shopping-cart" class="mr-3 w-5 h-5"></i> ORDERS</button>
-    <button onclick="go('payments')" id="d-btn-payments" class="nav-item w-full flex items-center px-6 py-4 font-bold text-sm"><i data-feather="credit-card" class="mr-3 w-5 h-5"></i> PAYMENTS</button>
-    <button onclick="go('customers')" id="d-btn-customers" class="nav-item w-full flex items-center px-6 py-4 font-bold text-sm"><i data-feather="users" class="mr-3 w-5 h-5"></i> ANJANI_AI</button>
-    <button onclick="go('leads')" id="d-btn-leads" class="nav-item w-full flex items-center px-6 py-4 font-bold text-sm"><i data-feather="target" class="mr-3 w-5 h-5"></i> LEADS</button>
-    <button onclick="go('stock')" id="d-btn-stock" class="nav-item w-full flex items-center px-6 py-4 font-bold text-sm"><i data-feather="package" class="mr-3 w-5 h-5"></i> STOCK</button>
-    <button onclick="go('smart')" id="d-btn-smart" class="nav-item w-full flex items-center px-6 py-4 font-bold text-sm text-purple-600"><i data-feather="zap" class="mr-3 w-5 h-5"></i> SMART ACTIONS <span id="smart-badge-desk" class="hidden ml-auto bg-orange-500 text-white text-[9px] px-1.5 py-0.5 rounded-full"></span></button>
-    <button onclick="go('dashboard')" id="d-btn-dashboard" class="nav-item w-full flex items-center px-6 py-4 font-bold text-sm"><i data-feather="grid" class="mr-3 w-5 h-5"></i> DASHBOARD</button>
+
+  <!-- ── Loader ────────────────────────────────────────────────── -->
+  <div id="loader" class="fixed inset-0 z-[200] flex flex-col items-center justify-center">
+    <div class="ld-brand">ANJANI<span>WATER</span></div>
+    <div class="ld-sub">LOADING SYSTEM</div>
+    <div class="ld-track"><div class="ld-fill"></div></div>
+    <div id="debug-log" class="mt-6 text-xs hidden max-w-xs text-center" style="color:#febd69;"></div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       DESKTOP SIDEBAR
+  ══════════════════════════════════════════════════════════ -->
+  <aside class="amz-sidebar hidden lg:flex flex-col h-full z-20">
+
+    <div class="sidebar-logo">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+           fill="none" stroke="#ff9900" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+        <path d="M2 17l10 5 10-5"/>
+        <path d="M2 12l10 5 10-5"/>
+      </svg>
+      <div class="brand">ANJANI<span>WATER</span></div>
+    </div>
+
+    <nav class="flex-1 py-3 overflow-y-auto no-scrollbar">
+      <button onclick="go('orders')"    id="d-btn-orders"    class="nav-item active">
+        <i data-feather="shopping-cart" class="w-4 h-4 flex-shrink-0"></i> ORDERS
+      </button>
+      <button onclick="go('payments')"  id="d-btn-payments"  class="nav-item">
+        <i data-feather="credit-card"   class="w-4 h-4 flex-shrink-0"></i> PAYMENTS
+      </button>
+      <button onclick="go('customers')" id="d-btn-customers" class="nav-item">
+        <i data-feather="cpu"           class="w-4 h-4 flex-shrink-0"></i> ANJANI AI
+      </button>
+      <button onclick="go('leads')"     id="d-btn-leads"     class="nav-item">
+        <i data-feather="target"        class="w-4 h-4 flex-shrink-0"></i> LEADS
+      </button>
+      <button onclick="go('stock')"     id="d-btn-stock"     class="nav-item">
+        <i data-feather="package"       class="w-4 h-4 flex-shrink-0"></i> STOCK
+      </button>
+      <div class="nav-divider"></div>
+      <button onclick="go('smart')"     id="d-btn-smart"     class="nav-item" style="color:#febd69;">
+        <i data-feather="zap"           class="w-4 h-4 flex-shrink-0" style="stroke:#febd69;"></i>
+        SMART ACTIONS
+        <span id="smart-badge-desk" class="amz-badge hidden ml-auto">0</span>
+      </button>
+      <button onclick="go('dashboard')" id="d-btn-dashboard" class="nav-item">
+        <i data-feather="bar-chart-2"   class="w-4 h-4 flex-shrink-0"></i> DASHBOARD
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <i data-feather="user" style="width:13px;height:13px;stroke:#febd69;"></i>
+      Account &amp; Settings
+    </div>
+  </aside>
+
+  <!-- ══════════════════════════════════════════════════════════
+       MOBILE TOP HEADER BARS
+  ══════════════════════════════════════════════════════════ -->
+  <header class="amz-topbar lg:hidden">
+    <div class="brand">ANJANI<span>WATER</span></div>
+    <div id="date-badge" class="date-pill">...</div>
+    <button class="icon-btn">
+      <i data-feather="bell" style="width:18px;height:18px;stroke:#febd69;"></i>
+    </button>
+  </header>
+
+  <div class="amz-subbar lg:hidden">
+    <i data-feather="map-pin"></i>
+    <span>Delivering to&nbsp;</span>
+    <strong>Vadodara, Gujarat</strong>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       MAIN CONTENT
+       pt on mobile = 52px (topbar) + 26px (subbar) = 78px
+       pb = nav-height + safe-area via CSS
+  ══════════════════════════════════════════════════════════ -->
+  <main class="main-content flex-1 h-full overflow-y-auto no-scrollbar lg:pt-6 px-3 lg:px-6">
+    <div id="view-orders">...</div>
+    <div id="view-stock"       class="hidden">...</div>
+    <div id="view-payments"    class="hidden">...</div>
+    <div id="view-customers"   class="hidden">...</div>
+    <div id="view-cust-detail" class="hidden">...</div>
+    <div id="view-leads"       class="hidden">...</div>
+    <div id="view-smart"       class="hidden">...</div>
+    <div id="view-dashboard"   class="hidden">...</div>
+  </main>
+
+  <!-- ══════════════════════════════════════════════════════════
+       MOBILE BOTTOM NAV
+       ✅ z-[150]              — highest z, nothing sits above it
+       ✅ .bottom-nav          — GPU layer, no ghost clicks
+       ✅ touch-action:manipulation on every button — no 300ms delay
+       ✅ pb-safe              — clears iPhone home indicator
+       ✅ nav-dot              — Amazon-style orange active dot
+  ══════════════════════════════════════════════════════════ -->
+  <nav class="bottom-nav lg:hidden fixed bottom-0 w-full flex justify-around z-[150]"
+       style="height: calc(var(--nav-height) + env(safe-area-inset-bottom, 0px));">
+
+    <button onclick="go('orders')"    id="m-btn-orders"    class="active pb-safe">
+      <i data-feather="shopping-cart" style="width:19px;height:19px;"></i>
+      <span style="font-size:9px;font-weight:700;">Orders</span>
+      <span class="nav-dot"></span>
+    </button>
+
+    <button onclick="go('payments')"  id="m-btn-payments"  class="pb-safe">
+      <i data-feather="credit-card"   style="width:19px;height:19px;"></i>
+      <span style="font-size:9px;font-weight:700;">Pay</span>
+      <span class="nav-dot"></span>
+    </button>
+
+    <button onclick="go('customers')" id="m-btn-customers" class="pb-safe">
+      <i data-feather="cpu"           style="width:19px;height:19px;"></i>
+      <span style="font-size:9px;font-weight:700;">AI</span>
+      <span class="nav-dot"></span>
+    </button>
+
+    <button onclick="go('leads')"     id="m-btn-leads"     class="pb-safe">
+      <i data-feather="target"        style="width:19px;height:19px;"></i>
+      <span style="font-size:9px;font-weight:700;">Leads</span>
+      <span class="nav-dot"></span>
+    </button>
+
+    <button onclick="go('stock')"     id="m-btn-stock"     class="pb-safe">
+      <i data-feather="package"       style="width:19px;height:19px;"></i>
+      <span style="font-size:9px;font-weight:700;">Stock</span>
+      <span class="nav-dot"></span>
+    </button>
+
+    <button onclick="go('smart')"     id="m-btn-smart"     class="pb-safe relative"
+            style="color:#c7511f;">
+      <i data-feather="zap"           style="width:19px;height:19px;stroke:#ff9900;"></i>
+      <span style="font-size:9px;font-weight:700;color:#c7511f;">Smart</span>
+      <span id="smart-badge-mob"
+            class="hidden absolute"
+            style="top:6px;right:6px;background:#b12704;color:#fff;
+                   font-size:8px;font-weight:700;padding:1px 4px;border-radius:3px;">
+      </span>
+      <span class="nav-dot" style="background:#ff9900;"></span>
+    </button>
+
+    <button onclick="go('dashboard')" id="m-btn-dashboard" class="pb-safe">
+      <i data-feather="bar-chart-2"   style="width:19px;height:19px;"></i>
+      <span style="font-size:9px;font-weight:700;">Dash</span>
+      <span class="nav-dot"></span>
+    </button>
+
   </nav>
-</aside>
 
-<header class="lg:hidden fixed top-0 w-full h-16 backdrop-blur-md border-b flex items-center justify-between px-5 z-40 bg-white/90">
-  <div class="font-black text-lg text-sky-900">ANJANI<span class="text-sky-500">WATER</span></div>
-  <div id="date-badge" class="text-[10px] font-bold px-3 py-1 rounded-full bg-sky-100 text-sky-700">...</div>
-</header>
+  <!-- ══════════════════════════════════════════════════════════
+       REFRESH FAB
+       z-[89] = BELOW nav (z-[150]) — can never steal nav taps
+  ══════════════════════════════════════════════════════════ -->
+  <button onclick="forceRefresh()" class="fab-refresh">
+    <i data-feather="refresh-cw" style="width:18px;height:18px;stroke:#131921;"></i>
+  </button>
 
-<main class="main-content flex-1 h-full overflow-y-auto no-scrollbar pt-20 lg:pt-8 pb-32 lg:pb-8 px-4 lg:px-8">
-  <div id="view-orders">...</div>
-  <div id="view-stock" class="hidden">...</div>
-  <div id="view-payments" class="hidden">...</div>
-  <div id="view-customers" class="hidden">...</div>
-  <div id="view-cust-detail" class="hidden">...</div>
-  <div id="view-leads" class="hidden">...</div>
-  <div id="view-smart" class="hidden">...</div>
-  <div id="view-dashboard" class="hidden">...</div>
-</main>
-
-<nav class="lg:hidden fixed bottom-0 w-full flex justify-around items-stretch h-20 z-[100] bg-white/95 backdrop-blur-xl border-t border-sky-100 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
-  <button onclick="go('orders')" id="m-btn-orders" class="mob-item active flex-1 pb-safe flex flex-col items-center justify-center gap-1"><i data-feather="shopping-cart" class="w-5 h-5"></i><span class="text-[9px] font-bold">Orders</span></button>
-  <button onclick="go('payments')" id="m-btn-payments" class="mob-item flex-1 pb-safe flex flex-col items-center justify-center gap-1"><i data-feather="credit-card" class="w-5 h-5"></i><span class="text-[9px] font-bold">Pay</span></button>
-  <button onclick="go('customers')" id="m-btn-customers" class="mob-item flex-1 pb-safe flex flex-col items-center justify-center gap-1"><i data-feather="users" class="w-5 h-5"></i><span class="text-[9px] font-bold">AI</span></button>
-  <button onclick="go('leads')" id="m-btn-leads" class="mob-item flex-1 pb-safe flex flex-col items-center justify-center gap-1"><i data-feather="target" class="w-5 h-5"></i><span class="text-[9px] font-bold">Leads</span></button>
-  <button onclick="go('stock')" id="m-btn-stock" class="mob-item flex-1 pb-safe flex flex-col items-center justify-center gap-1"><i data-feather="package" class="w-5 h-5"></i><span class="text-[9px] font-bold">Stock</span></button>
-  <button onclick="go('smart')" id="m-btn-smart" class="mob-item flex-1 pb-safe flex flex-col items-center justify-center gap-1 text-purple-600 relative"><i data-feather="zap" class="w-5 h-5"></i><span class="text-[9px] font-bold">Smart</span><span id="smart-badge-mob" class="hidden absolute top-2 right-2 bg-orange-500 text-white text-[8px] px-1 rounded-full"></span></button>
-  <button onclick="go('dashboard')" id="m-btn-dashboard" class="mob-item flex-1 pb-safe flex flex-col items-center justify-center gap-1"><i data-feather="grid" class="w-5 h-5"></i><span class="text-[9px] font-bold">Dash</span></button>
-</nav>
-
-<button onclick="forceRefresh()" class="fixed bottom-28 right-4 md:bottom-8 md:right-8 w-12 h-12 rounded-full shadow-xl flex items-center justify-center z-[90] bg-sky-600 text-white border border-white/20 active:scale-90 transition">
-  <i data-feather="refresh-cw" class="w-5 h-5"></i>
-</button>
-
-<div id="login-screen" class="fixed inset-0 z-[10000] flex flex-col items-center justify-center bg-sky-900">
+  <!-- ══════════════════════════════════════════════════════════
+       LOGIN SCREEN
+  ══════════════════════════════════════════════════════════ -->
+  <div id="login-screen"
+       class="fixed inset-0 z-[10000] flex flex-col items-center justify-center"
+       style="background: var(--amz-bg);">
   </div>
 
-<script>window.MAPS_API_KEY = 'YOUR_KEY';</script>
-<script type="module" src="firebase-api.js"></script>
-<script type="module" src="src/app.js"></script>
+  <!-- ══════════════════════════════════════════════════════════
+       SCRIPTS
+  ══════════════════════════════════════════════════════════ -->
+  <script>window.MAPS_API_KEY = 'YOUR_KEY';</script>
+  <script type="module" src="firebase-api.js"></script>
+  <script type="module" src="src/app.js"></script>
+
 </body>
 </html>
