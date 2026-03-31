@@ -1,5 +1,5 @@
 import { DB } from './state.js';
-
+import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 export async function loadData() {
   const log = document.getElementById('debug-log');
   const CACHE_KEY = 'anjani_db_v2'; 
@@ -158,27 +158,67 @@ window.go = go;
 // ======================================================================
 // LOGIN HANDLER
 // ======================================================================
-export function handleLogin(e) {
+// ======================================================================
+// LOGIN HANDLER (PIN -> FIREBASE BRIDGE)
+// ======================================================================
+export async function handleLogin(e) {
   if (e) e.preventDefault();
   
-  // 1. Hide the login screen
-  const loginScreen = document.getElementById('login-screen') || document.getElementById('page-login');
-  if (loginScreen) loginScreen.classList.add('hidden');
-  
-  // 2. Show the main app layout
-  const appLayout = document.getElementById('app-layout') || document.querySelector('.flex.h-screen');
-  if (appLayout) appLayout.classList.remove('hidden');
+  const pinInput = document.getElementById('pin-input');
+  const pin = pinInput ? pinInput.value : '';
+  const errorMsg = document.getElementById('pin-error');
 
-  // 3. Trigger the instant data load we just built
-  if (typeof window._loadData === 'function') {
-    window._loadData();
+  // Change "9999" to whatever secret PIN you want to use!
+  if (pin === "9999") {
+    if (errorMsg) {
+      errorMsg.innerText = "AUTHENTICATING...";
+      errorMsg.style.opacity = '1';
+      errorMsg.classList.remove('text-red-500');
+      errorMsg.classList.add('text-blue-500');
+    }
+
+    try {
+      // 1. Secretly log into Firebase in the background
+      const auth = getAuth();
+      await signInWithEmailAndPassword(auth, "admin@anjaniwater.in", "Anjani@2026");
+
+      // 2. Hide the login screen
+      const loginScreen = document.getElementById('login-screen') || document.getElementById('page-login');
+      if (loginScreen) loginScreen.classList.add('hidden');
+      
+      // 3. Show the main app layout
+      const appLayout = document.getElementById('app-layout') || document.querySelector('.flex.h-screen');
+      if (appLayout) appLayout.classList.remove('hidden');
+
+      // 4. Trigger the instant data load we just built
+      if (typeof window._loadData === 'function') {
+        window._loadData();
+      } else if (typeof loadData === 'function') {
+        loadData(); // Fallback if called directly from this file
+      }
+
+      // 5. Send the user to the dashboard
+      if (typeof window.go === 'function') {
+        window.go('dashboard');
+      }
+
+    } catch (error) {
+      // If Firebase rejects the background login
+      if (errorMsg) {
+        errorMsg.innerText = "⛔ DATABASE ERROR: " + error.message;
+        errorMsg.classList.remove('text-blue-500');
+        errorMsg.classList.add('text-red-500');
+      }
+    }
   } else {
-    loadData(); // Fallback if called directly from this file
-  }
-
-  // 4. Send the user to the dashboard
-  if (typeof window.go === 'function') {
-    window.go('dashboard');
+    // If they typed the wrong PIN
+    if (errorMsg) {
+      errorMsg.innerText = "⛔ INCORRECT PIN";
+      errorMsg.classList.remove('text-blue-500');
+      errorMsg.classList.add('text-red-500');
+      errorMsg.style.opacity = '1';
+      setTimeout(() => { if(errorMsg) errorMsg.style.opacity = '0'; }, 2000);
+    }
   }
 }
 
