@@ -4,6 +4,9 @@ import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 // ======================================================================
 // MAIN DATA LOADER (WITH BULLETPROOF DATA GATE & PATIENCE LOOP)
 // ======================================================================
+// ======================================================================
+// MAIN DATA LOADER (WITH BULLETPROOF DATA GATE & PATIENCE LOOP)
+// ======================================================================
 export async function loadData() {
   return new Promise(async (resolve) => {
     const CACHE_KEY = 'anjani_db_v2'; 
@@ -65,14 +68,18 @@ export async function loadData() {
     // ======================================================================
     let checkCount = 0;
     
-    // Check every 100ms if Firebase is ready (up to 2 seconds max)
+    // Check every 100ms if Firebase is ready (up to 4 seconds max)
     const checkFirebase = setInterval(() => {
       if (typeof window.setupRealtime === 'function') {
         clearInterval(checkFirebase); // Found it! Stop checking.
         
         window.setupRealtime(async function(eventName) {
-          // The exact second Firebase sends us ANY data, unlock the gate!
-          unlockGate();
+          
+          // ── THE FIX: STRICT UNLOCK RULES ──
+          // Wait for the magic word, OR wait until we actually see Orders in the DB
+          if (eventName === '__initial_load_complete__' || (DB.orders && DB.orders.length > 0)) {
+              unlockGate();
+          }
 
           if (connText) {
             connText.innerText = 'Live — ' + new Date().toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'});
@@ -93,8 +100,8 @@ export async function loadData() {
           }
         });
         
-      } else if (checkCount > 20) {
-        // Waited 2 seconds and still no Firebase. Fail safely.
+      } else if (checkCount > 40) {
+        // Waited 4 seconds and still no Firebase. Fail safely so you aren't stuck.
         clearInterval(checkFirebase);
         console.warn("setupRealtime took too long to load.");
         unlockGate(); 
