@@ -10,6 +10,9 @@ import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 // ======================================================================
 // MAIN DATA LOADER (WITH BULLETPROOF DATA GATE & STRICT CACHE)
 // ======================================================================
+// ======================================================================
+// MAIN DATA LOADER (WITH STRICT "ALL COLLECTIONS" DATA GATE)
+// ======================================================================
 export async function loadData() {
   return new Promise(async (resolve) => {
     const CACHE_KEY = 'anjani_db_v2'; 
@@ -33,7 +36,6 @@ export async function loadData() {
     // ======================================================================
     const cached = window.AnjaniCache ? await window.AnjaniCache.get(CACHE_KEY) : null;
     
-    // 🔥 THE FIX: Strictly check if the cache ACTUALLY contains orders!
     if (cached && cached.orders && cached.orders.length > 0) {
       DB.customers = cached.customers || []; 
       DB.orders    = cached.orders || [];
@@ -51,8 +53,6 @@ export async function loadData() {
         connText.innerText = 'Syncing in background...';
         connText.classList.add('animate-pulse'); 
       }
-      
-      // We have REAL cache, unlock the gate!
       unlockGate();
     } else {
       if (connText) connText.innerText = 'First time setup, downloading...';
@@ -63,23 +63,23 @@ export async function loadData() {
         connText.innerText = 'Offline — Using cached data';
         connText.classList.remove('animate-pulse');
       }
-      unlockGate(); // Unlock if offline
+      unlockGate(); 
       return; 
     }
 
     // ======================================================================
-    // STEP 2: SILENT BACKGROUND SYNC (FIREBASE WITH PATIENCE LOOP)
+    // STEP 2: SILENT BACKGROUND SYNC (FIREBASE)
     // ======================================================================
     let checkCount = 0;
     
     const checkFirebase = setInterval(() => {
       if (typeof window.setupRealtime === 'function') {
-        clearInterval(checkFirebase); // Found it! Stop checking.
+        clearInterval(checkFirebase); 
         
         window.setupRealtime(async function(eventName) {
           
-          // Wait until we actually see Orders in the DB
-          if (eventName === '__initial_load_complete__' || (DB.orders && DB.orders.length > 0)) {
+          // 🔥 THE FIX: ONLY unlock when EVERY single collection has arrived!
+          if (eventName === '__initial_load_complete__') {
               unlockGate();
           }
 
@@ -92,7 +92,6 @@ export async function loadData() {
           if (typeof window._renderLeads === 'function') window._renderLeads();
           if (typeof window._renderDashboard === 'function') window._renderDashboard();
 
-          // 🔥 THE FIX: Do NOT save empty data back to the cache!
           if (window.AnjaniCache && DB.orders && DB.orders.length > 0) {
             await window.AnjaniCache.set(CACHE_KEY, {
               customers: DB.customers, orders: DB.orders, payments: DB.payments,
@@ -108,7 +107,6 @@ export async function loadData() {
       }
       checkCount++;
     }, 100);
-
   });
 }
 // ======================================================================
