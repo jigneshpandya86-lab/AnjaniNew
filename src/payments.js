@@ -1,9 +1,10 @@
 // ============================================================
-// PAYMENTS
+// PAYMENTS (100% PURE FIREBASE)
 // ============================================================
 import { DB, STAFF_NUM } from './state.js';
 import { esc, showToast } from './utils.js';
-import { dispatch } from './engine.js'; // 🔥 Powered by the Central Sync Engine!
+import { db } from '../firebase-config.js';
+import { doc, setDoc } from 'firebase/firestore';
 
 export function renderRecentPayments() {
   const list = document.getElementById('list-payments');
@@ -83,8 +84,10 @@ export function submitPayment(e) {
   document.getElementById('modal-pay').classList.remove('hidden');
 }
 
-// 🔥 Engine-Powered Execute Payment
-export function executePayment() {
+// ============================================================
+// PURE FIREBASE: EXECUTE PAYMENT
+// ============================================================
+export async function executePayment() {
   const custId = document.getElementById('pay-customer').value;
   const amt    = document.getElementById('pay-amount').value;
   const date   = document.getElementById('pay-date').value || new Date().toISOString().split('T')[0];
@@ -102,26 +105,41 @@ export function executePayment() {
     return;
   }
 
-  // 1. Package the payload
   const payData = {
-    id:       'PAY-' + Date.now(), // Generate a unique ID for the local cache
+    id:       'PAY-' + Date.now(), 
     clientId: c.id,
     customer: c.name,
     mobile:   c.mobile,
-    amount:   amt,
+    amount:   Number(amt),
     date:     date,
     mode:     'Cash'
   };
 
-  // 2. Hide Modal & Clear Form instantly
   document.getElementById('pay-amount').value = '';
   document.getElementById('modal-pay').classList.add('hidden');
 
-  // 3. Hand it to the Central Engine!
-  dispatch('SAVE_PAYMENT', payData);
+  showToast(`⏳ Recording payment for ${c.name}...`);
 
-  // 4. Show a friendly toast notification
-  showToast(`✅ Payment of ₹${amt} recorded for ${c.name}`);
+  try {
+     // Save straight to Firebase
+     await setDoc(doc(db, 'payments', payData.id), payData);
+     
+     // Instantly pop the new payment onto the screen
+     if (!DB.payments) DB.payments = [];
+     DB.payments.push(payData);
+     
+     renderRecentPayments();
+     
+     // Update Customer details view if currently open
+     if (typeof window.viewCust === 'function' && window._currentCustID === c.id) {
+         window.viewCust(c.id);
+     }
+     
+     showToast(`✅ Payment of ₹${amt} recorded successfully!`);
+  } catch(err) {
+     console.error("Payment Error:", err);
+     alert("❌ Failed to record payment: " + err.message);
+  }
 }
 
 export function shareStatement(id) {
