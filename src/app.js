@@ -206,53 +206,47 @@ window.addEventListener('offline', () => { updateOnlineStatus(); showOfflineToas
 // ── Boot Sequence with Data Gate & Safe Timeout ──────────────
 // ── Boot Sequence with Data Gate & Safe Timeout ──────────────
 // ── Boot Sequence with Data Gate & Safe Timeout ──────────────
+// ── Boot Sequence: The Absolute Master Controller ──────────────
 async function startApp() {
   const loader = document.getElementById('loader');
-  const debugLog = document.getElementById('debug-log');
   const loginScreen = document.getElementById('login-screen');
 
   const session = localStorage.getItem('anjani_session');
 
   if (session) {
-    // 🟢 FORCE the loader to stay visible while we authenticate
+    // 1. LOCK THE DOORS: Splash Screen ON, Login Screen OFF
     if (loader) loader.classList.remove('hidden');
+    if (loginScreen) loginScreen.classList.add('hidden');
 
-    // 1. Wait for Firebase to produce the actual User Token
+    // 2. WAIT FOR FIREBASE: Do not proceed until token is verified
     const auth = getAuth();
     await new Promise((resolve) => {
       const unsubscribe = onAuthStateChanged(auth, (user) => {
-        // THE FIX: Only move forward if Firebase confirms you are logged in
         if (user) {
           resolve(); 
-          unsubscribe(); // Stop listening once verified
+          unsubscribe();
         }
       });
       // Safety net: If totally offline, stop waiting after 3 seconds
       setTimeout(() => { resolve(); }, 3000);
     });
 
-    // 2. NOW run the Data Gate
+    // 3. THE UNBREAKABLE DATA GATE: No timeouts, no escape hatches.
     try {
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("Network Timeout")), 6000)
-      );
-
       if (typeof window._loadData === 'function') {
-        await Promise.race([window._loadData(), timeoutPromise]);
-        console.log("✅ Data Gate Passed. App Ready.");
+        // Execution PAUSES here until src/nav.js unlocks the gate!
+        await window._loadData(); 
       }
+      console.log("✅ Data Gate Passed. Cache is loaded.");
     } catch (err) {
-      console.warn("⏳ Network slow or Offline. Booting from local cache...", err);
-      if (debugLog) {
-        debugLog.innerText = "Network slow. Using offline cache...";
-        debugLog.classList.remove('hidden');
-        setTimeout(() => debugLog.classList.add('hidden'), 3000);
-      }
+      console.warn("⏳ Data Gate error:", err);
     }
 
-    // 3. Render UI and FINALLY hide Splash Screen
+    // 4. DATA IS CONFIRMED: Render UI and finally drop the splash screen
     if (typeof window._render === 'function') window._render();
     if (typeof window._renderDashboard === 'function') window._renderDashboard();
+    
+    // Welcome to the App!
     if (loader) loader.classList.add('hidden');
 
   } else {
@@ -260,9 +254,7 @@ async function startApp() {
     if (loginScreen) loginScreen.classList.remove('hidden');
     if (loader) loader.classList.add('hidden');
   }
-
-  // Run legacy initialization if needed
-  if (typeof initApp === 'function') initApp();
 }
 
+// Fire the engine when the HTML loads
 window.addEventListener('DOMContentLoaded', startApp);
