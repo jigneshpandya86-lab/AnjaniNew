@@ -2,7 +2,7 @@ import { DB } from './state.js';
 import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 
 // ======================================================================
-// MAIN DATA LOADER (STRICT LIVE-SYNC GATE)
+// MAIN DATA LOADER (WITH 5-SECOND ESCAPE HATCH)
 // ======================================================================
 export async function loadData() {
   return new Promise(async (resolve) => {
@@ -12,9 +12,9 @@ export async function loadData() {
     window._loadData = loadData;
 
     const connText = document.getElementById('conn-text');
+    let gateUnlocked = false;
     
     // ── Master switch for the Data Gate ──
-    let gateUnlocked = false;
     const unlockGate = () => {
         if (!gateUnlocked) {
             gateUnlocked = true;
@@ -22,12 +22,25 @@ export async function loadData() {
         }
     };
 
+    // ── THE ESCAPE HATCH ──
+    // NEVER trap the user for more than 5 seconds, no matter what.
+    const escapeHatch = setTimeout(() => {
+        if (!gateUnlocked) {
+            console.warn("Data load took too long. Forcing app open.");
+            if (connText) {
+                connText.innerText = 'Network slow. Opening app...';
+                connText.classList.remove('animate-pulse');
+            }
+            unlockGate();
+        }
+    }, 5000);
+
     // ======================================================================
-    // STEP 1: LOAD CACHE (BUT KEEP THE GATE LOCKED)
+    // STEP 1: LOAD CACHE 
     // ======================================================================
     const cached = window.AnjaniCache ? await window.AnjaniCache.get(CACHE_KEY) : null;
     
-    if (cached && cached.orders) {
+    if (cached && cached.orders && cached.orders.length > 0) {
       DB.customers = cached.customers || []; 
       DB.orders    = cached.orders || [];
       DB.payments  = cached.payments || []; 
@@ -45,8 +58,9 @@ export async function loadData() {
         connText.classList.add('animate-pulse'); 
       }
       
-      // 🔥 WE NO LONGER UNLOCK THE GATE HERE. 
-      // The Splash Screen stays frozen until Firebase connects!
+      // If we have cached data, unlock instantly so you can work!
+      clearTimeout(escapeHatch);
+      unlockGate();
     } else {
       if (connText) connText.innerText = 'First time setup, downloading...';
     }
@@ -57,12 +71,13 @@ export async function loadData() {
         connText.innerText = 'Offline — Using cached data';
         connText.classList.remove('animate-pulse');
       }
+      clearTimeout(escapeHatch);
       unlockGate(); 
       return; 
     }
 
     // ======================================================================
-    // STEP 2: WAIT FOR FIREBASE (THE REAL GATEKEEPER)
+    // STEP 2: WAIT FOR FIREBASE LIVE SYNC
     // ======================================================================
     let checkCount = 0;
     
@@ -72,8 +87,9 @@ export async function loadData() {
         
         window.setupRealtime(async function(eventName) {
           
-          // 🔥 ONLY unlock the screen when Firebase confirms ALL data is downloaded!
-          if (eventName === '__initial_load_complete__') {
+          // Unlock the screen when Firebase confirms data is downloaded!
+          if (eventName === '__initial_load_complete__' || (DB.orders && DB.orders.length > 0)) {
+              clearTimeout(escapeHatch); // Data arrived! Kill the escape hatch.
               unlockGate();
           }
 
@@ -96,16 +112,16 @@ export async function loadData() {
         });
         
       } else if (checkCount > 40) {
-        // Fail-safe: If Firebase is totally broken after 4 seconds, drop the screen so you can work offline.
+        // Fail-safe: If Firebase is totally broken after 4 seconds
         clearInterval(checkFirebase);
-        console.warn("setupRealtime took too long to load.");
-        unlockGate(); 
+        // We do nothing here because the 5-second escapeHatch above will fire in 1 second and open the app.
       }
       checkCount++;
     }, 100);
 
   });
 }
+
 // ======================================================================
 // NAVIGATION ROUTER (FIXED FOR HTML "view-" IDs)
 // ======================================================================
@@ -143,13 +159,7 @@ export function go(pageId) {
 window.go = go;
 
 // ======================================================================
-// LOGIN HANDLER (PIN -> FIREBASE BRIDGE)
-// ======================================================================
-// ======================================================================
-// LOGIN HANDLER (PIN -> FIREBASE BRIDGE)
-// ======================================================================
-// ======================================================================
-// LOGIN HANDLER (PIN -> FIREBASE BRIDGE)
+// LOGIN HANDLER (PIN -> SILENT FIREBASE AUTH)
 // ======================================================================
 export async function handleLogin(e) {
   if (e) e.preventDefault();
@@ -172,16 +182,14 @@ export async function handleLogin(e) {
       // 1. Show the Loading Splash Screen
       if (loader) loader.classList.remove('hidden');
 
-      // 2. Secretly log into Firebase
+      // 2. Secretly log into Firebase (This allows you to SAVE data!)
       const auth = getAuth();
       await signInWithEmailAndPassword(auth, "admin@anjaniwater.in", "Anjani@2026");
       
       // 3. Save the session token
       localStorage.setItem('anjani_session', 'active');
 
-      // 4. THE MAGIC FIX: Reload the app!
-      // This forces the app to do a clean boot as an authenticated user.
-      // It will trigger startApp(), wait for Firebase, and fetch data perfectly.
+      // 4. Reload the app to boot as an authenticated user.
       window.location.reload();
 
     } catch (error) {
@@ -204,6 +212,7 @@ export async function handleLogin(e) {
   }
 }
 window.handleLogin = handleLogin;
+
 // ======================================================================
 // APP INITIALIZATION
 // ======================================================================
