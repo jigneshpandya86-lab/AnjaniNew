@@ -29,16 +29,40 @@ jobs:
       - name: Build Web App (Vite)
         run: npm run build
 
-      - name: Install Capacitor (Cloud Terminal)
+      - name: Install Capacitor & Native Plugins
         run: |
           npm install @capacitor/core @capacitor/android
+          npm install @capacitor/camera @capacitor/geolocation @capacitor/filesystem
           npm install -D @capacitor/cli
 
       - name: Initialize Capacitor
         run: npx cap init "Anjani Water" "com.anjani.water" --web-dir dist
 
       - name: Generate Android Project
-        run: npx cap add android
+        run: |
+          npx cap add android
+          npx cap sync android
+
+      - name: Inject Native Permissions (God Mode)
+        run: |
+          cat << 'EOF' > inject-perms.js
+          const fs = require('fs');
+          const file = 'android/app/src/main/AndroidManifest.xml';
+          let data = fs.readFileSync(file, 'utf8');
+          
+          // Injecting deep system permissions directly into the manifest
+          const perms = `
+              <uses-permission android:name="android.permission.RECEIVE_SMS" />
+              <uses-permission android:name="android.permission.READ_SMS" />
+              <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+              <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+              <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+          `;
+          
+          data = data.replace('</manifest>', perms + '</manifest>');
+          fs.writeFileSync(file, data);
+          EOF
+          node inject-perms.js
 
       - name: Fix Kotlin Duplicate Classes
         working-directory: ./android/app
