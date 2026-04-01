@@ -1,17 +1,20 @@
 // ============================================================
-// CUSTOMER MANAGEMENT
+// CUSTOMER MANAGEMENT (100% PURE FIREBASE)
 // ============================================================
 import { DB, CONFIG } from './state.js';
 import { esc, showToast } from './utils.js';
-import { dispatch } from './engine.js'; 
 import { db } from '../firebase-config.js';
 import { doc, setDoc, updateDoc } from 'firebase/firestore';
+
 export function renderCustomers(s) {
   const l = document.getElementById('list-customers');
   if (!l) return;
   l.innerHTML = '';
   const statusEl = document.getElementById('cust-filter-status');
-  if (s === 'FLAGGED') { statusEl.classList.remove('hidden'); statusEl.innerHTML = 'Showing Clients with Dues (<span class="text-blue-600 font-bold cursor-pointer underline" onclick="renderCustomers(\'\')">Clear</span>)'; }
+  if (s === 'FLAGGED') { 
+      statusEl.classList.remove('hidden'); 
+      statusEl.innerHTML = 'Showing Clients with Dues (<span class="text-blue-600 font-bold cursor-pointer underline" onclick="renderCustomers(\'\')">Clear</span>)'; 
+  }
   else statusEl.classList.add('hidden');
   
   const lastActiveMap = {};
@@ -22,7 +25,12 @@ export function renderCustomers(s) {
   (DB.orders||[]).forEach(o => { if(o.status!=='Pending') updateDate(o.clientId, o.customer, o.deliveryDate); });
   (DB.payments||[]).forEach(p => { updateDate(p.clientId, p.customer, p.date); });
   
-  const sortedList = (DB.customers||[]).slice().sort((a,b) => { const dA=lastActiveMap[a.id]||lastActiveMap[a.name]||'2000-01-01'; const dB=lastActiveMap[b.id]||lastActiveMap[b.name]||'2000-01-01'; return dB.localeCompare(dA); });
+  const sortedList = (DB.customers||[]).slice().sort((a,b) => { 
+      const dA=lastActiveMap[a.id]||lastActiveMap[a.name]||'2000-01-01'; 
+      const dB=lastActiveMap[b.id]||lastActiveMap[b.name]||'2000-01-01'; 
+      return dB.localeCompare(dA); 
+  });
+  
   const cutoffStr = new Date(Date.now()- (CONFIG?.LEAD_CUTOFF_DAYS || 30) *86400000).toISOString().split('T')[0];
   let foundCount = 0;
   
@@ -97,19 +105,14 @@ export function viewCust(id) {
 }
 
 // ============================================================
-// 1. BULLETPROOF FORM OPENER
-// ============================================================
-// ============================================================
-// 1. BULLETPROOF FORM OPENER
+// BULLETPROOF FORM OPENER
 // ============================================================
 export function openCustForm(isEdit) {
   const modal = document.getElementById('modal-cust');
   if (!modal) return;
   
-  // Show the modal instantly
   modal.classList.remove('hidden');
   
-  // Safe helper: prevents crashing if an input is missing
   const safeSet = (id, val) => { 
       const el = document.getElementById(id); 
       if (el) el.value = val; 
@@ -125,7 +128,6 @@ export function openCustForm(isEdit) {
     safeSet('new-map', c.map || '');
     safeSet('new-rate', c.rate || '150');
   } else {
-    // Blank form for a New Client
     safeSet('new-id', ''); 
     safeSet('new-name', '');
     safeSet('new-mob', ''); 
@@ -135,7 +137,7 @@ export function openCustForm(isEdit) {
 }
 
 // ============================================================
-// 2. DIRECT FIREBASE SAVE (BYPASSES THE QUEUE)
+// PURE FIREBASE: SAVE NEW & EDIT CLIENT
 // ============================================================
 export async function saveClient(e) {
   if (e) e.preventDefault();
@@ -157,7 +159,7 @@ export async function saveClient(e) {
   }
 
   const isEdit = !!id;
-  const finalId = id || 'C-' + Date.now(); // Generate unique ID
+  const finalId = id || 'C-' + Date.now(); 
 
   const data = { 
     id: finalId, 
@@ -168,9 +170,9 @@ export async function saveClient(e) {
     active: true 
   };
 
-  // Close modal instantly
   const modal = document.getElementById('modal-cust');
   if (modal) modal.classList.add('hidden');
+  showToast('⏳ Saving directly to live database...');
 
   try {
      const custRef = doc(db, 'customers', finalId);
@@ -182,34 +184,60 @@ export async function saveClient(e) {
          await setDoc(custRef, data, { merge: true });
      }
      
-     // Optionally refresh the UI card
+     showToast('✅ Customer saved successfully!');
      if (isEdit && typeof viewCust === 'function') viewCust(finalId);
-     
   } catch (error) {
      console.error("Save Error:", error);
      alert("❌ Failed to save client: " + error.message);
   }
 }
-// 🔥 Engine-Powered Active Toggle
-export function toggleCustActive(id) {
+
+// ============================================================
+// PURE FIREBASE: TOGGLE ACTIVE STATUS
+// ============================================================
+export async function toggleCustActive(id) {
   const c = DB.customers.find(x => x.id === id);
   if (!c) return;
   
-  const updatedCustomer = { ...c, active: !(String(c.active) === 'true' || c.active === true) };
-  dispatch('SAVE_CLIENT', updatedCustomer);
+  const newStatus = !(String(c.active) === 'true' || c.active === true);
+  
+  // Snap the UI immediately
+  c.active = newStatus;
   viewCust(id); 
+  showToast('⏳ Updating status in database...');
+
+  try {
+    await updateDoc(doc(db, 'customers', String(id)), { active: newStatus });
+    showToast(newStatus ? '✅ Client is now ACTIVE' : '⏸️ Client is now INACTIVE');
+  } catch (error) {
+    console.error("Status Update Error:", error);
+  }
 }
 
-// 🔥 Engine-Powered Flag Toggle
-export function toggleCustFlag(id) {
+// ============================================================
+// PURE FIREBASE: TOGGLE FLAG
+// ============================================================
+export async function toggleCustFlag(id) {
   const c = DB.customers.find(x => x.id === id);
   if (!c) return;
   
-  const updatedCustomer = { ...c, flag: !c.flag };
-  dispatch('SAVE_CLIENT', updatedCustomer);
+  const newFlag = !c.flag;
+  
+  // Snap the UI immediately
+  c.flag = newFlag;
   viewCust(id);
+
+  try {
+    await updateDoc(doc(db, 'customers', String(id)), { flag: newFlag });
+    showToast(newFlag ? '🚩 Client Flagged!' : '✅ Flag Removed');
+  } catch (error) {
+    console.error("Flag Update Error:", error);
+  }
 }
 
+// ============================================================
+// LOCATION EDITOR UI
+// ============================================================
 export function openLocationEditor(id, oldAddr) {
   window._currentEditingOrderId = id;
   const modal = document.getElementById('modal-loc-edit');
@@ -248,8 +276,10 @@ export function initEditMap() {
   } catch(e) { console.log("Edit Map Error: "+e.message); }
 }
 
-// 🔥 Engine-Powered Map Update
-export function submitLocationUpdate() {
+// ============================================================
+// PURE FIREBASE: UPDATE ORDER LOCATION
+// ============================================================
+export async function submitLocationUpdate() {
   const inputVal = document.getElementById('loc-edit-input').value.trim();
   let hiddenLink = document.getElementById('loc-edit-link').value;
   if (inputVal.toLowerCase().startsWith('http')) hiddenLink = inputVal;
@@ -258,12 +288,25 @@ export function submitLocationUpdate() {
   
   const currentEditingOrderId = window._currentEditingOrderId || null;
   document.getElementById('modal-loc-edit').classList.add('hidden');
+  showToast("⏳ Updating Location...");
 
-  // Utilize the UPDATE_ORDER engine action to save the new address!
-  dispatch('UPDATE_ORDER', { id: currentEditingOrderId, address: inputVal, mapLink: hiddenLink, status: null, qty: null, date: null, time: null });
-  showToast("✅ Location Updated!");
+  try {
+    if(currentEditingOrderId) {
+        await updateDoc(doc(db, 'orders', String(currentEditingOrderId)), { 
+            address: inputVal, 
+            mapLink: hiddenLink 
+        });
+        showToast("✅ Location Updated!");
+    }
+  } catch (error) {
+     console.error("Map Update Error:", error);
+     alert("❌ Failed to update location.");
+  }
 }
 
+// ============================================================
+// LEADS NOTE UI
+// ============================================================
 export function openNote(id) {
   const lead = DB.leads.find(l => l.id === id);
   const currentNote = lead ? (lead.notes||'') : '';
@@ -274,13 +317,20 @@ export function openNote(id) {
   document.getElementById('note-input').focus();
 }
 
-// 🔥 Engine-Powered Note Save
-export function saveNote() {
+// ============================================================
+// PURE FIREBASE: SAVE LEADS NOTE
+// ============================================================
+export async function saveNote() {
   const id = document.getElementById('note-lead-id').value;
   const text = document.getElementById('note-input').value;
   document.getElementById('note-modal').classList.add('hidden');
+  showToast('⏳ Saving note...');
   
-  // Utilize the UPDATE_LEAD engine action to save the note!
-  dispatch('UPDATE_LEAD', { id: id, updates: { notes: text } });
-  showToast('✅ Note saved!');
+  try {
+     await updateDoc(doc(db, 'leads', String(id)), { notes: text });
+     showToast('✅ Note saved directly to database!');
+  } catch(error) {
+     console.error("Note Save Error:", error);
+     alert("❌ Failed to save note.");
+  }
 }
