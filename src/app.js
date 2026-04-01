@@ -52,7 +52,7 @@ import {
 
 import {
   loadHistory, clearHistory, sendChat,
-  runAiText, applyTaskType, quickFill,
+  runAiText, quickFill,
   processAiResponse, startVoiceInput, initMap
 } from './ai.js';
 
