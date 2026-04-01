@@ -4,7 +4,8 @@
 import { DB, CONFIG } from './state.js';
 import { esc, showToast } from './utils.js';
 import { dispatch } from './engine.js'; // 🔥 Powered by the Central Sync Engine!
-
+import { db } from './firebase-config.js';
+import { doc, setDoc, updateDoc } from 'firebase/firestore';
 export function renderCustomers(s) {
   const l = document.getElementById('list-customers');
   if (!l) return;
@@ -95,50 +96,108 @@ export function viewCust(id) {
   try { feather.replace(); } catch(e){ console.warn('[feather]', e.message); }
 }
 
+// ============================================================
+// 1. BULLETPROOF FORM OPENER
+// ============================================================
 export function openCustForm(isEdit) {
-  document.getElementById('modal-cust').classList.remove('hidden');
+  const modal = document.getElementById('modal-cust');
+  if (!modal) {
+      console.error("Modal ID 'modal-cust' not found in HTML!");
+      return;
+  }
+  
+  // Open the modal first
+  modal.classList.remove('hidden');
+  
   const currentCustID = window._currentCustID || null;
+  
+  // Safe helper: Prevents app crashes if an input box is missing from the HTML
+  const safeSet = (id, val) => { 
+      const el = document.getElementById(id); 
+      if (el) el.value = val; 
+  };
+
   if (isEdit && currentCustID) {
-    const c = DB.customers.find(x => x.id === currentCustID);
-    document.getElementById('new-id').value = c.id; document.getElementById('new-name').value = c.name;
-    document.getElementById('new-mob').value = c.mobile; document.getElementById('new-map').value = c.map;
-    document.getElementById('new-rate').value = c.rate;
+    const c = DB.customers.find(x => x.id === currentCustID) || {};
+    safeSet('new-id', c.id || ''); 
+    safeSet('new-name', c.name || '');
+    safeSet('new-mob', c.mobile || ''); 
+    safeSet('new-map', c.map || '');
+    safeSet('new-rate', c.rate || '150');
   } else {
-    document.getElementById('new-id').value = ''; document.getElementById('new-name').value = '';
-    document.getElementById('new-mob').value = ''; document.getElementById('new-rate').value = '150';
+    // Adding a NEW Client
+    safeSet('new-id', ''); 
+    safeSet('new-name', '');
+    safeSet('new-mob', ''); 
+    safeSet('new-map', '');
+    safeSet('new-rate', '150');
   }
 }
 
-// 🔥 Engine-Powered Customer Save
-export function saveClient(e) {
-  e.preventDefault();
-  const id = document.getElementById('new-id').value;
-  const name = document.getElementById('new-name').value;
-  const mobile = document.getElementById('new-mob').value;
+// ============================================================
+// 2. PURE FIREBASE SAVE (NO GOOGLE SCRIPT)
+// ============================================================
+export async function saveClient(e) {
+  if (e) e.preventDefault();
+  
+  // Safe helper to read values
+  const safeGet = (id) => { 
+      const el = document.getElementById(id); 
+      return el ? el.value.trim() : ''; 
+  };
+  
+  const id = safeGet('new-id');
+  const name = safeGet('new-name');
+  const mobile = safeGet('new-mob');
+  const mapLink = safeGet('new-map');
+  const rate = safeGet('new-rate') || '150';
   
   if (!name || !mobile) {
     alert("⚠️ Customer Name and Mobile number are required.");
     return;
   }
 
+  const isEdit = !!id;
+  // If it's a new client, generate a fresh ID
+  const finalId = id || 'C-' + Date.now();
+
   const data = { 
-    isEdit: !!id, 
-    id: id || 'C-' + Date.now(), 
+    id: finalId, 
     name: name, 
     mobile: mobile, 
-    map: document.getElementById('new-map').value || '', 
-    rate: document.getElementById('new-rate').value || '150', 
+    map: mapLink, 
+    rate: rate, 
     active: true 
   };
 
-  document.getElementById('modal-cust').classList.add('hidden');
-  dispatch('SAVE_CLIENT', data);
+  // Close the modal
+  const modal = document.getElementById('modal-cust');
+  if (modal) modal.classList.add('hidden');
   
-  // Force the view card to update if we were editing
-  if (id) viewCust(id); 
-  showToast('✅ Customer saved successfully!');
-}
+  showToast('⏳ Saving to live database...');
 
+  try {
+     const custRef = doc(db, 'customers', finalId);
+     
+     if (isEdit) {
+         // Update existing customer safely
+         await updateDoc(custRef, data);
+     } else {
+         // Create brand new customer (and set outstanding balance to 0)
+         data.outstanding = 0;
+         await setDoc(custRef, data, { merge: true });
+     }
+     
+     showToast('✅ Customer saved successfully!');
+     
+     // Refresh the UI if we were editing an existing client
+     if (isEdit && typeof viewCust === 'function') viewCust(finalId);
+     
+  } catch (error) {
+     console.error("Firebase Save Error:", error);
+     alert("❌ Failed to save: " + error.message);
+  }
+}
 // 🔥 Engine-Powered Active Toggle
 export function toggleCustActive(id) {
   const c = DB.customers.find(x => x.id === id);
