@@ -51,7 +51,7 @@ import {
 } from './jobs.js';
 
 import {
-  addBubble, loadHistory, clearHistory, sendChat,
+  loadHistory, clearHistory, sendChat,
   runAiText, applyTaskType, quickFill,
   processAiResponse, startVoiceInput, initMap
 } from './ai.js';
