@@ -228,7 +228,10 @@ async function startApp() {
     // 4. Render UI & Drop Screen
     if (typeof window._render === 'function') window._render();
     if (typeof window._renderDashboard === 'function') window._renderDashboard();
-    
+    // 🔥 NEW: Force a sync attempt immediately upon opening the app!
+    if (typeof window.drainActionQueue === 'function') {
+        window.drainActionQueue();
+    }
     if (loader) loader.classList.add('hidden');
 
   } else {
@@ -239,3 +242,10 @@ async function startApp() {
 }
 
 window.addEventListener('DOMContentLoaded', startApp);
+// ── Aggressive Auto-Sync Timer ────────────────────────────────
+// Forcefully push offline saved data to Firebase every 15 seconds
+setInterval(() => {
+    if (navigator.onLine && typeof window.drainActionQueue === 'function') {
+        window.drainActionQueue();
+    }
+}, 15000);
