@@ -1,17 +1,31 @@
 // ============================================================
-// DASHBOARD (OPTIMIZED FOR FIREBASE)
+// DASHBOARD (OPTIMIZED WITH BULLETPROOF DATE PARSING)
 // ============================================================
 import { DB } from './state.js';
 
+// Helper to safely convert ANY date format into a raw timestamp
+function safeTime(dStr) {
+  if (!dStr) return 0;
+  // If it's DD-MM-YYYY or DD/MM/YYYY
+  if (dStr.indexOf('-') === 2 || dStr.indexOf('/') === 2) {
+    const parts = dStr.split(/[-/]/);
+    return new Date(parts[2], parts[1] - 1, parts[0]).getTime();
+  }
+  // If it's already YYYY-MM-DD
+  return new Date(dStr).getTime();
+}
+
 function computeDashboardData() {
   const { customers=[], orders=[], payments=[], stock=[] } = DB;
-  const today      = new Date().toISOString().split('T')[0];
-  const weekAgo    = new Date(Date.now()-7*864e5).toISOString().split('T')[0];
-  const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+  
+  // Calculate cutoff times
+  const todayTime      = safeTime(new Date().toISOString().split('T')[0]);
+  const weekAgoTime    = todayTime - (7 * 86400000); // 7 days in milliseconds
+  const monthStartTime = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime();
 
-  const pm = from => {
-    const o = orders.filter(o => o.status!=='Pending' && o.deliveryDate>=from);
-    const p = payments.filter(p => p.date>=from);
+  const pm = fromTime => {
+    const o = orders.filter(o => o.status !== 'Pending' && safeTime(o.deliveryDate) >= fromTime);
+    const p = payments.filter(p => safeTime(p.date) >= fromTime);
     return { 
       orders: o.length, 
       box: o.reduce((s,x)=>s+(+x.boxes||0),0), 
@@ -21,9 +35,9 @@ function computeDashboardData() {
   };
 
   return {
-    TODAY:  { ...pm(today), prod: stock.filter(s=>s.date===today).reduce((s,r)=>s+(+r.produced||0),0) },
-    WEEK:   pm(weekAgo),
-    MONTH:  pm(monthStart),
+    TODAY:  { ...pm(todayTime), prod: stock.filter(s=>safeTime(s.date)===todayTime).reduce((s,r)=>s+(+r.produced||0),0) },
+    WEEK:   pm(weekAgoTime),
+    MONTH:  pm(monthStartTime),
     STATUS: { 
       pending: orders.filter(o=>o.status==='Pending').length, 
       outstanding: customers.reduce((s,c)=>s+(+c.outstanding||0),0), 
@@ -136,7 +150,7 @@ export function renderExecutiveDues(duesList) {
   }
   
   listDiv.innerHTML = '';
-  duesList.slice(0, 20).forEach(c => { // Show top 20
+  duesList.slice(0, 20).forEach(c => { 
     const isHigh = c.bal > 50000, isMed = c.bal > 20000;
     const msg = `Hello ${c.name}, your outstanding is ₹${c.bal}. Please clear it.`;
     const div = document.createElement('div');
