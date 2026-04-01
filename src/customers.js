@@ -1,12 +1,11 @@
 // ============================================================
 // CUSTOMER MANAGEMENT
 // ============================================================
-import { DB } from './state.js';
-import { db } from '../firebase-config.js';
-import { doc, setDoc, updateDoc } from 'firebase/firestore';
 import { DB, CONFIG } from './state.js';
 import { esc, showToast } from './utils.js';
-import { dispatch } from './engine.js'; // 🔥 Powered by the Central Sync Engine!
+import { dispatch } from './engine.js'; 
+import { db } from '../firebase-config.js';
+import { doc, setDoc, updateDoc } from 'firebase/firestore';
 export function renderCustomers(s) {
   const l = document.getElementById('list-customers');
   if (!l) return;
