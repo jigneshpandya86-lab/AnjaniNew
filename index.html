@@ -807,6 +807,42 @@
     <p id="pin-error" class="mt-3 text-red-500 text-xs font-bold h-5 opacity-0 transition-opacity">⛔ INCORRECT PIN</p>
   </div>
 </div>
+  <div id="modal-cust" class="hidden fixed inset-0 z-[20000] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+  <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200">
+    <div class="bg-slate-900 p-5 text-white flex justify-between items-center">
+      <h3 class="font-black tracking-wider flex items-center gap-2"><i data-feather="user-plus" class="w-5 h-5 text-blue-400"></i> Client Details</h3>
+      <button onclick="document.getElementById('modal-cust').classList.add('hidden')" class="text-slate-400 hover:text-white transition active:scale-95"><i data-feather="x" class="w-6 h-6"></i></button>
+    </div>
+    <form onsubmit="saveClient(event)" class="p-6 space-y-4">
+      <input type="hidden" id="new-id">
+      
+      <div>
+        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider pl-1">Business / Customer Name</label>
+        <input type="text" id="new-name" required class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 transition mt-1" placeholder="e.g., Maheshbhai">
+      </div>
+      
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider pl-1">Mobile</label>
+          <input type="tel" id="new-mob" required class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 transition mt-1" placeholder="10-digit number">
+        </div>
+        <div>
+          <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider pl-1">Default Rate (₹)</label>
+          <input type="number" id="new-rate" value="150" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 transition mt-1" placeholder="150">
+        </div>
+      </div>
+      
+      <div>
+        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider pl-1">Google Maps Link</label>
+        <input type="text" id="new-map" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 transition mt-1" placeholder="Paste location link...">
+      </div>
+      
+      <button type="submit" class="w-full bg-blue-600 text-white font-black py-4 rounded-xl shadow-lg mt-4 active:scale-95 transition hover:bg-blue-700 flex items-center justify-center gap-2">
+        <i data-feather="save" class="w-4 h-4"></i> SAVE CLIENT TO FIREBASE
+      </button>
+    </form>
+  </div>
+</div>
 <!-- ══════════════════════════════════════════════════════════════
      SCRIPTS — 100% identical to original, nothing changed
 ══════════════════════════════════════════════════════════════ -->
