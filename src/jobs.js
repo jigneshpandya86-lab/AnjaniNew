@@ -1,9 +1,10 @@
 // ============================================================
-// JOBS / TASKS TRACKING
+// JOBS / TASKS TRACKING (100% PURE FIREBASE)
 // ============================================================
 import { DB, STAFF_NUM } from './state.js';
 import { showToast } from './utils.js';
-import { dispatch } from './engine.js'; // 🔥 Powered by the Central Sync Engine!
+import { db } from '../firebase-config.js';
+import { doc, setDoc, updateDoc } from 'firebase/firestore';
 
 let jobFilter = 'Active';
 
@@ -50,7 +51,7 @@ export function renderJobs() {
   
   if (!count) list.innerHTML = `<div class="p-8 text-center text-slate-400 text-xs italic">No ${jobFilter} jobs found.</div>`;
   try { feather.replace(); } catch(e){ console.warn('[feather]', e.message); }
-  if (typeof updateSmartBadge === 'function') updateSmartBadge();
+  updateSmartBadge();
 }
 
 export function quickSend(msg) {
@@ -79,8 +80,10 @@ function sjBuildMsg() {
   return '📋 *Pending Work*\n\n'+p.map((j,i) => (i+1)+'. '+j.task+' ('+j.status+')').join('\n')+'\n\nPlease complete and confirm.\n– Anjani Water';
 }
 
-// 🔥 Engine-Powered Follow Ups
-export function sendAllDueFollowUps() {
+// ============================================================
+// PURE FIREBASE: FOLLOW UP ALL DUE TASKS
+// ============================================================
+export async function sendAllDueFollowUps() {
   const todayStr = new Date().toLocaleDateString('en-CA');
   const dueJobs = (DB.jobs||[]).filter(j => j.status==='Sent' && j.followUp<=todayStr);
   
@@ -94,12 +97,17 @@ export function sendAllDueFollowUps() {
   const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate()+1);
   const tomorrowStr = tomorrow.toLocaleDateString('en-CA');
   
-  dueJobs.forEach(j => { 
-    dispatch('UPDATE_JOB', { id: j.id, updates: { followUp: tomorrowStr } });
-  });
-  
-  renderJobs();
-  if (typeof window._updateSmartBadge === 'function') window._updateSmartBadge();
+  showToast('⏳ Updating follow-up dates...');
+  try {
+      for (const j of dueJobs) {
+          await updateDoc(doc(db, 'jobs', String(j.id)), { followUp: tomorrowStr });
+          j.followUp = tomorrowStr;
+      }
+      renderJobs();
+      showToast('✅ Follow-up updated to tomorrow');
+  } catch (err) {
+      console.error(err);
+  }
 }
 
 export function updateSmartBadge() {
@@ -179,8 +187,10 @@ export function filterJobs(status) {
   renderJobs();
 }
 
-// 🔥 Engine-Powered Job Execution (Create, Sent, Done, Undo)
-export function runJob(action, id, method) {
+// ============================================================
+// PURE FIREBASE: JOB EXECUTION (CREATE, SENT, DONE, UNDO)
+// ============================================================
+export async function runJob(action, id, method) {
   if (action==='CREATE') {
     const input = document.getElementById('job-input');
     const text = input.value.trim();
@@ -195,8 +205,16 @@ export function runJob(action, id, method) {
     };
     
     input.value = '';
-    dispatch('SAVE_JOB', newJob);
-    renderJobs();
+    showToast('⏳ Creating task...');
+    try {
+        await setDoc(doc(db, 'jobs', newJob.id), newJob);
+        if (!DB.jobs) DB.jobs = [];
+        DB.jobs.push(newJob);
+        renderJobs();
+        showToast('✅ Task added!');
+    } catch (err) {
+        console.error(err);
+    }
     return;
   }
   
@@ -205,20 +223,27 @@ export function runJob(action, id, method) {
     let newStatus = job.status;
     
     if (action==='SENT') { 
-      if(method==='WA') document.getElementById('lnk-wa-'+id).click(); 
-      if(method==='SMS') document.getElementById('lnk-sms-'+id).click(); 
+      if(method==='WA') { const el = document.getElementById('lnk-wa-'+id); if(el) el.click(); }
+      if(method==='SMS') { const el = document.getElementById('lnk-sms-'+id); if(el) el.click(); }
       newStatus = 'Sent'; 
     }
     else if (action==='DONE') newStatus = 'Done';
     else if (action==='UNDO') newStatus = 'Pending';
     
-    dispatch('UPDATE_JOB', { id: id, updates: { status: newStatus } });
-    renderJobs();
+    try {
+        await updateDoc(doc(db, 'jobs', String(id)), { status: newStatus });
+        job.status = newStatus;
+        renderJobs();
+    } catch (err) {
+        console.error(err);
+    }
   }
 }
 
-// 🔥 Engine-Powered Individual Follow Up
-export function sendJobFollowUp(id) {
+// ============================================================
+// PURE FIREBASE: INDIVIDUAL TASK FOLLOW UP
+// ============================================================
+export async function sendJobFollowUp(id) {
   const job = (DB.jobs||[]).find(j => String(j.id) === String(id));
   if (!job) return;
   
@@ -228,10 +253,15 @@ export function sendJobFollowUp(id) {
   const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate()+1);
   const tomorrowStr = tomorrow.toLocaleDateString('en-CA');
   
-  dispatch('UPDATE_JOB', { id: id, updates: { followUp: tomorrowStr, status: 'Sent' } });
-  
-  renderJobs();
-  updateSmartBadge();
+  try {
+      await updateDoc(doc(db, 'jobs', String(id)), { followUp: tomorrowStr, status: 'Sent' });
+      job.followUp = tomorrowStr;
+      job.status = 'Sent';
+      renderJobs();
+      updateSmartBadge();
+  } catch (err) {
+      console.error(err);
+  }
 }
 
 function nileshWA(msg) {
@@ -254,7 +284,7 @@ export function sendMorningBrief() {
   
   let msg='🌅 *GOOD MORNING NILESH*\n📅 '+fmtDate+'\n\n';
   msg+='🚚 *DELIVERIES TODAY ('+deliveries.length+')*\n';
-  deliveries.forEach((o,i) => { msg+=(i+1)+'. '+o.customer+' — '+o.boxes+' boxes\n   📍 '+(o.address||'No address')+'\n   🕐 '+(o.time||'Anytime')+'\n'; });
+  deliveries.forEach((o,i) => { msg+=(i+1)+'. '+o.customer+' — '+o.boxes+' boxes\n    📍 '+(o.address||'No address')+'\n    🕐 '+(o.time||'Anytime')+'\n'; });
   if(!deliveries.length) msg+='No deliveries today\n';
   
   msg+='\n📋 *PENDING TASKS ('+jobs.length+')*\n';
