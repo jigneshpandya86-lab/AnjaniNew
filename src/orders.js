@@ -1,9 +1,10 @@
 // ============================================================
-// ORDERS MANAGEMENT
+// ORDERS MANAGEMENT (100% PURE FIREBASE)
 // ============================================================
 import { DB, STAFF_NUM, CONFIG } from './state.js';
 import { esc, showToast } from './utils.js';
-import { dispatch } from './engine.js'; // 🔥 Powered by the new Central Sync Engine!
+import { db } from '../firebase-config.js';
+import { doc, setDoc, updateDoc } from 'firebase/firestore';
 
 export function render() {
   // Dropdowns
@@ -34,7 +35,7 @@ export function render() {
   // Use timezone-safe dates for India (IST)
   const getLocalISO = (d) => new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
   const todayStrISO = getLocalISO(new Date());
-  const fiveDaysAgoStr = getLocalISO(new Date(Date.now() - 5 * 86400000)); // 5 days in milliseconds
+  const fiveDaysAgoStr = getLocalISO(new Date(Date.now() - 5 * 86400000)); 
   const showTodayOnly = window._showTodayOnly || false;
 
   let rawList = (DB.orders || []).filter(function(o) {
@@ -237,8 +238,10 @@ export function toggleSort() {
   feather.replace(); render();
 }
 
-// 🔥 Engine-Powered Save
-export function placeOrder(e) {
+// ============================================================
+// PURE FIREBASE: PLACE ORDER
+// ============================================================
+export async function placeOrder(e) {
   e.preventDefault();
   
   const cid = document.getElementById('ord-cust').value;
@@ -252,7 +255,6 @@ export function placeOrder(e) {
   const safeQty = Number(document.getElementById('ord-qty').value) || 0;
   const safeRate = Number(document.getElementById('ord-rate').value) || 0;
   
-  // 1. Package the payload
   const newOrder = {
     id:           'ORD-' + Date.now(),
     clientId:     cid,
@@ -271,38 +273,96 @@ export function placeOrder(e) {
     status:       'Pending'
   };
 
-  // 2. Clear the form for the next order instantly
   e.target.reset();
   document.getElementById('ord-date').value = new Date().toISOString().split('T')[0];
   window._highlightID = newOrder.id;
 
-  // 3. Hand it to the Central Engine and walk away!
-  dispatch('SAVE_ORDER', newOrder);
+  showToast('⏳ Saving order to live database...');
+  try {
+     // Save straight to Firebase
+     await setDoc(doc(db, 'orders', newOrder.id), newOrder);
+     showToast('✅ Order placed successfully!');
+     
+     // Instantly pop the new order onto the screen
+     DB.orders.push(newOrder);
+     render();
+  } catch(err) {
+     console.error(err);
+     alert("❌ Failed to save order: " + err.message);
+  }
 }
 
-// 🔥 Engine-Powered Edit
-export function saveOrderEdit(id) {
+// ============================================================
+// PURE FIREBASE: SAVE EDIT
+// ============================================================
+export async function saveOrderEdit(id) {
   const qty     = document.getElementById('q-'+id).value;
   const date    = document.getElementById('d-'+id).value;
   const timeEl  = document.getElementById('t-'+id);
   const time    = timeEl ? timeEl.value : '09:00';
   const address = document.getElementById('a-'+id).value;
 
-  const updates = { id: id, status: null, qty: qty, date: date, time: time, address: address };
-  
-  dispatch('UPDATE_ORDER', updates);
-  setTimeout(() => updMsg(id), 500); // Give it a split second to re-render, then update the WhatsApp message
+  showToast('⏳ Updating order...');
+  try {
+     const o = DB.orders.find(x => x.id === id);
+     let amt = o ? Number(o.amount) : 0;
+     if (o && o.rate) amt = Number(qty) * Number(o.rate);
+
+     await updateDoc(doc(db, 'orders', String(id)), {
+        boxes: Number(qty),
+        amount: amt,
+        deliveryDate: date,
+        time: time,
+        address: address
+     });
+
+     // Snap UI instantly
+     if(o) {
+         o.boxes = Number(qty); o.amount = amt; o.deliveryDate = date; o.time = time; o.address = address;
+         render();
+     }
+     
+     showToast('✅ Order updated!');
+     setTimeout(() => updMsg(id), 500); 
+  } catch(err) {
+     console.error(err);
+     alert("❌ Failed to update order.");
+  }
 }
 
-// 🔥 Engine-Powered Delete/Deliver
-export function doDel(id) {
+// ============================================================
+// PURE FIREBASE: MARK DELIVERED
+// ============================================================
+export async function doDel(id) {
   const qty     = document.getElementById('q-' + id).value;
   const date    = document.getElementById('d-' + id).value;
   const timeEl  = document.getElementById('t-' + id);
   const time    = timeEl ? timeEl.value : '09:00';
   const address = document.getElementById('a-' + id).value;
 
-  const updates = { id: id, status: 'Delivered', qty: qty, date: date, time: time, address: address };
-  
-  dispatch('UPDATE_ORDER', updates);
+  showToast('⏳ Marking as Delivered...');
+  try {
+     const o = DB.orders.find(x => x.id === id);
+     let amt = o ? Number(o.amount) : 0;
+     if (o && o.rate) amt = Number(qty) * Number(o.rate);
+
+     await updateDoc(doc(db, 'orders', String(id)), {
+        status: 'Delivered',
+        boxes: Number(qty),
+        amount: amt,
+        deliveryDate: date,
+        time: time,
+        address: address
+     });
+
+     // Snap UI instantly
+     if(o) {
+         o.status = 'Delivered'; o.boxes = Number(qty); o.amount = amt; o.deliveryDate = date; o.time = time; o.address = address;
+         render();
+     }
+     showToast('✅ Order Delivered!');
+  } catch(err) {
+     console.error(err);
+     alert("❌ Failed to mark as delivered.");
+  }
 }
