@@ -1,9 +1,10 @@
 // ============================================================
-// STOCK MANAGEMENT
+// STOCK MANAGEMENT (100% PURE FIREBASE)
 // ============================================================
 import { DB } from './state.js';
 import { setText, showToast } from './utils.js';
-import { dispatch } from './engine.js'; // 🔥 Powered by the Central Sync Engine!
+import { db } from '../firebase-config.js';
+import { doc, setDoc } from 'firebase/firestore';
 
 export function renderStockPage() {
   const todayStr = new Date().toISOString().split('T')[0];
@@ -105,8 +106,10 @@ export function setStockQty(n) {
   if (inp) inp.value = n;
 }
 
-// 🔥 Engine-Powered Save Stock
-export function saveStock() {
+// ============================================================
+// PURE FIREBASE: SAVE STOCK
+// ============================================================
+export async function saveStock() {
   const qtyInput = document.getElementById('prod-val');
   const qty = Number(qtyInput.value);
   
@@ -114,24 +117,34 @@ export function saveStock() {
   
   const sku = document.getElementById('prod-sku').value || '200ml';
 
-  // 1. Package the payload (Includes fields for both Firebase and Local UI)
   const stockData = {
     id:        'STK-' + Date.now(),
-    qty:       qty,                                      // For Firebase compatibility
-    sku:       sku,                                      // For Firebase compatibility
-    date:      new Date().toISOString().split('T')[0],   // For Local Memory/Render
-    produced:  qty,                                      // For Local Memory/Render
-    delivered: 0                                         // For Local Memory/Render
+    qty:       qty,                                      
+    sku:       sku,                                      
+    date:      new Date().toISOString().split('T')[0],   
+    produced:  qty,                                      
+    delivered: 0                                         
   };
 
-  // 2. Clear the form instantly
   qtyInput.value = '';
+  showToast('⏳ Adding to live stock...');
 
-  // 3. Hand it to the Central Engine!
-  dispatch('SAVE_STOCK', stockData);
-
-  // 4. Show a friendly toast notification
-  showToast(`✅ ${qty} units (${sku}) added to stock!`);
+  try {
+     // Save straight to Firebase
+     await setDoc(doc(db, 'stock', stockData.id), stockData);
+     
+     // Instantly pop it into the UI memory
+     if (!DB.stock) DB.stock = [];
+     DB.stock.push(stockData);
+     
+     // Rerender the progress bars
+     renderStockPage();
+     
+     showToast(`✅ ${qty} units (${sku}) added to stock!`);
+  } catch(err) {
+     console.error("Stock Save Error:", err);
+     alert("❌ Failed to save stock: " + err.message);
+  }
 }
 
 function esc(str) {
