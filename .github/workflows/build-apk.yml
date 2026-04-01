@@ -45,24 +45,7 @@ jobs:
 
       - name: Inject Native Permissions (God Mode)
         run: |
-          cat << 'EOF' > inject-perms.cjs
-          const fs = require('fs');
-          const file = 'android/app/src/main/AndroidManifest.xml';
-          let data = fs.readFileSync(file, 'utf8');
-          
-          // Injecting deep system permissions directly into the manifest
-          const perms = `
-              <uses-permission android:name="android.permission.RECEIVE_SMS" />
-              <uses-permission android:name="android.permission.READ_SMS" />
-              <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-              <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-              <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-          `;
-          
-          data = data.replace('</manifest>', perms + '</manifest>');
-          fs.writeFileSync(file, data);
-          EOF
-          node inject-perms.cjs
+          sed -i 's|</manifest>|<uses-permission android:name="android.permission.RECEIVE_SMS" />\n    <uses-permission android:name="android.permission.READ_SMS" />\n    <uses-permission android:name="android.permission.SEND_SMS" />\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />\n    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />\n</manifest>|g' android/app/src/main/AndroidManifest.xml
 
       - name: Fix Kotlin Duplicate Classes
         working-directory: ./android/app
