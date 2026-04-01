@@ -1,47 +1,27 @@
-// firebase-api.js — Firebase bridge replacing Google Apps Script JSONP polyfill
-// Uses npm package imports (bundled by Vite) instead of CDN URLs.
-import { db, auth, googleProvider } from './firebase-config.js';
+// firebase-api.js — Firebase bridge
+import { db, auth } from './firebase-config.js'; // ❌ Removed googleProvider
 import {
   collection, addDoc, getDoc, getDocs, doc, updateDoc, deleteDoc,
   query, where, setDoc, runTransaction, writeBatch, increment, onSnapshot,
   orderBy, limit,
 } from 'firebase/firestore';
 import {
-  signInWithPopup, signOut, onAuthStateChanged,
+  signOut, onAuthStateChanged // ❌ Removed signInWithPopup
 } from 'firebase/auth';
 
 const MACRO_URL = 'https://trigger.macrodroid.com/c54612db-2ff7-4ff5-ac00-e428c1011e31/anjani_sms';
 
-// ─── Google Auth helpers ──────────────────────────────────────────────────────
+// ─── AUTHENTICATION (PIN ONLY - GOOGLE COMPLETELY REMOVED) ────────────
 
-// Called by the "Sign in with Google" button in the login screen
-window.handleGoogleLogin = async function() {
-  const btn = document.getElementById('btn-google-login');
-  const errEl = document.getElementById('google-error');
-  if (btn) { btn.disabled = true; btn.textContent = 'Signing in...'; }
-  if (errEl) errEl.classList.add('opacity-0');
-  try {
-    await signInWithPopup(auth, googleProvider);
-    // onAuthStateChanged below will handle showing the app
-  } catch (e) {
-    console.error('[Auth] Google sign-in failed:', e.message);
-    if (errEl) errEl.classList.remove('opacity-0');
-    if (btn) { btn.disabled = false; btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.08 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-3.59-13.46-8.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg> Sign in with Google`; }
-  }
-};
-
-// Called by a sign-out button (optional — can add to UI later)
-window.handleGoogleSignOut = async function() {
+window.handleSignOut = async function() {
   await signOut(auth);
-  localStorage.removeItem('anjani_app_access');
+  localStorage.removeItem('anjani_session');
   location.reload();
 };
 
-// Watch auth state — show/hide login screen automatically
 // Watch auth state — SILENTLY update session, do NOT touch the UI here!
 onAuthStateChanged(auth, (user) => {
   if (user) {
-    // Authenticated — Just save the token quietly. Let src/app.js handle the screens!
     localStorage.setItem('anjani_session', 'active');
   } else {
     localStorage.removeItem('anjani_session');
