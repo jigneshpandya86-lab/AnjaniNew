@@ -50,11 +50,8 @@ import {
   sendMorningBrief, sendStockRequest, sendEveningReport, sendSmartBrief
 } from './jobs.js';
 
-import {
-  loadHistory, sendChat,
-  runAiText, quickFill,
-  processAiResponse, startVoiceInput, initMap
-} from './ai.js';
+// 🔥 WE STRIPPED OUT ALL THE BROKEN AI IMPORTS HERE:
+import { clearHistory, sendChat, startVoiceInput } from './ai.js';
 
 import {
   getActionQueue, saveActionQueue, enqueueAction, drainActionQueue,
@@ -71,7 +68,6 @@ window._renderSmartActions  = renderSmartActions;
 window._renderJobs          = renderJobs;
 window._renderDailyStatus   = renderDailyStatus;
 window._updateSmartBadge    = updateSmartBadge;
-window._loadHistory         = loadHistory;
 window._loadData            = loadData;
 
 // ── Expose to window for HTML onclick="" attributes ──────────
@@ -173,14 +169,10 @@ window.sendStockRequest      = sendStockRequest;
 window.sendEveningReport     = sendEveningReport;
 window.sendSmartBrief        = sendSmartBrief;
 
-// AI & Voice
+// AI & Voice (Stripped down to avoid crashes)
 window.sendChat              = sendChat;
-window.runAiText             = runAiText;
-window.applyTaskType         = applyTaskType;
-window.quickFill             = quickFill;
 window.clearHistory          = clearHistory;
 window.startVoiceInput       = startVoiceInput;
-window.initMap               = initMap;
 
 // Sync & offline
 window.enqueueAction         = enqueueAction;
@@ -200,11 +192,9 @@ async function startApp() {
   const session = localStorage.getItem('anjani_session');
 
   if (session) {
-    // 1. Show Splash, Hide Login
     if (loader) loader.classList.remove('hidden');
     if (loginScreen) loginScreen.classList.add('hidden');
 
-    // 2. Wait for Firebase Admin Auth (Max 3 seconds safety net)
     const auth = getAuth();
     await new Promise((resolve) => {
       const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -216,7 +206,6 @@ async function startApp() {
       setTimeout(() => { resolve(); }, 3000); 
     });
 
-    // 3. Run Data Loader (nav.js handles the timeouts)
     try {
       if (typeof window._loadData === 'function') {
         await window._loadData(); 
@@ -225,25 +214,24 @@ async function startApp() {
       console.warn("⏳ Data Gate error:", err);
     }
 
-    // 4. Render UI & Drop Screen
     if (typeof window._render === 'function') window._render();
     if (typeof window._renderDashboard === 'function') window._renderDashboard();
-    // 🔥 NEW: Force a sync attempt immediately upon opening the app!
+    
     if (typeof window.drainActionQueue === 'function') {
         window.drainActionQueue();
     }
+    
     if (loader) loader.classList.add('hidden');
 
   } else {
-    // 🔴 NOT LOGGED IN
     if (loginScreen) loginScreen.classList.remove('hidden');
     if (loader) loader.classList.add('hidden');
   }
 }
 
 window.addEventListener('DOMContentLoaded', startApp);
+
 // ── Aggressive Auto-Sync Timer ────────────────────────────────
-// Forcefully push offline saved data to Firebase every 15 seconds
 setInterval(() => {
     if (navigator.onLine && typeof window.drainActionQueue === 'function') {
         window.drainActionQueue();
