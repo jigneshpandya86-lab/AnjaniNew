@@ -50,9 +50,6 @@ import {
   sendMorningBrief, sendStockRequest, sendEveningReport, sendSmartBrief
 } from './jobs.js';
 
-// 🔥 WE STRIPPED OUT ALL THE BROKEN AI IMPORTS HERE:
-import { clearHistory, sendChat, startVoiceInput } from './ai.js';
-
 import {
   getActionQueue, saveActionQueue, enqueueAction, drainActionQueue,
   updateSyncBadge, showOfflineToast, updateOnlineStatus, forceRefresh
@@ -168,11 +165,6 @@ window.sendMorningBrief      = sendMorningBrief;
 window.sendStockRequest      = sendStockRequest;
 window.sendEveningReport     = sendEveningReport;
 window.sendSmartBrief        = sendSmartBrief;
-
-// AI & Voice (Stripped down to avoid crashes)
-window.sendChat              = sendChat;
-window.clearHistory          = clearHistory;
-window.startVoiceInput       = startVoiceInput;
 
 // Sync & offline
 window.enqueueAction         = enqueueAction;
