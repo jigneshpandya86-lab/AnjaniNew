@@ -45,7 +45,7 @@ jobs:
 
       - name: Inject Native Permissions (God Mode)
         run: |
-          cat << 'EOF' > inject-perms.js
+          cat << 'EOF' > inject-perms.cjs
           const fs = require('fs');
           const file = 'android/app/src/main/AndroidManifest.xml';
           let data = fs.readFileSync(file, 'utf8');
