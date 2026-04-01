@@ -38,19 +38,13 @@ window.handleGoogleSignOut = async function() {
 };
 
 // Watch auth state — show/hide login screen automatically
+// Watch auth state — SILENTLY update session, do NOT touch the UI here!
 onAuthStateChanged(auth, (user) => {
-  const screen = document.getElementById('login-screen');
-  if (!screen) return;
   if (user) {
-    // Authenticated via Google — hide login screen and start the app
-    localStorage.setItem('anjani_app_access', 'true');
-    screen.style.opacity = '0';
-    setTimeout(() => { screen.style.display = 'none'; }, 400);
-    // Trigger data load if not already started
-    if (typeof loadData === 'function' && !window._dataLoaded) {
-      window._dataLoaded = true;
-      loadData();
-    }
+    // Authenticated — Just save the token quietly. Let src/app.js handle the screens!
+    localStorage.setItem('anjani_session', 'active');
+  } else {
+    localStorage.removeItem('anjani_session');
   }
 });
 
