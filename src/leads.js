@@ -1,9 +1,10 @@
 // ============================================================
-// LEAD MANAGEMENT
+// LEAD MANAGEMENT (100% PURE FIREBASE)
 // ============================================================
 import { DB, CONFIG, STAFF_NUM } from './state.js';
 import { showToast } from './utils.js';
-import { dispatch } from './engine.js'; // 🔥 Powered by the Central Sync Engine!
+import { db } from '../firebase-config.js';
+import { doc, setDoc, updateDoc } from 'firebase/firestore';
 
 export function renderLeads() {
   const list = document.getElementById('list-leads');
@@ -96,8 +97,10 @@ export function setLeadFilter(f) {
   renderLeads();
 }
 
-// 🔥 Engine-Powered Save Lead
-export function addLead() {
+// ============================================================
+// PURE FIREBASE: SAVE NEW LEAD
+// ============================================================
+export async function addLead() {
   const input = document.getElementById('lead-input');
   const raw = input.value;
   if (!raw) return alert("Please enter details");
@@ -105,7 +108,6 @@ export function addLead() {
   const mobileMatch = raw.match(/\d{10}/);
   const tempMobile = mobileMatch ? mobileMatch[0] : raw;
   
-  // 1. Package Payload
   const newLead = {
     id: 'LD-' + Date.now(),
     mobile: tempMobile,
@@ -114,40 +116,69 @@ export function addLead() {
     raw: raw
   };
 
-  // 2. Clear Form
   input.value = '';
+  showToast('⏳ Saving lead...');
 
-  // 3. Dispatch to Engine
-  dispatch('SAVE_LEAD', newLead);
-  showToast('✅ Lead saved successfully!');
+  try {
+     // Save straight to Firebase
+     await setDoc(doc(db, 'leads', newLead.id), newLead);
+     
+     // Instantly pop it into the UI
+     if (!DB.leads) DB.leads = [];
+     DB.leads.push(newLead);
+     renderLeads();
+     
+     showToast('✅ Lead saved successfully!');
+  } catch(err) {
+     console.error("Lead Save Error:", err);
+     alert("❌ Failed to save lead: " + err.message);
+  }
 }
 
-// 🔥 Engine-Powered Lead Actions (Status Updates & Deletes)
-export function runLeadAction(action, id) {
+// ============================================================
+// PURE FIREBASE: UPDATE STATUS OR DELETE
+// ============================================================
+export async function runLeadAction(action, id) {
   if (action === 'DELETE' && !confirm("Delete this lead permanently?")) return;
 
-  // Handle immediate local UI removal for deletes
-  if (action === 'DELETE') {
-    DB.leads = DB.leads.filter(l => String(l.id) !== String(id));
-    dispatch('UPDATE_LEAD', { id: id, updates: { deleted: true } });
-    renderLeads();
-    return;
-  }
+  const leadIndex = (DB.leads || []).findIndex(l => String(l.id) === String(id));
+  if (leadIndex === -1) return;
 
-  // Handle Status updates
-  let newStatus = null;
-  if (action.startsWith('STATUS:')) {
-    newStatus = action.split(':')[1];
-  } else if (action === 'CONVERT') {
-    newStatus = 'Converted';
-  }
+  showToast('⏳ Updating lead...');
 
-  if (newStatus) {
-    dispatch('UPDATE_LEAD', { id: id, updates: { status: newStatus } });
+  try {
+      // HANDLE DELETE
+      if (action === 'DELETE') {
+        await updateDoc(doc(db, 'leads', String(id)), { deleted: true });
+        DB.leads[leadIndex].deleted = true;
+        renderLeads();
+        showToast('✅ Lead deleted.');
+        return;
+      }
+
+      // HANDLE STATUS UPDATE
+      let newStatus = null;
+      if (action.startsWith('STATUS:')) {
+        newStatus = action.split(':')[1];
+      } else if (action === 'CONVERT') {
+        newStatus = 'Converted';
+      }
+
+      if (newStatus) {
+        await updateDoc(doc(db, 'leads', String(id)), { status: newStatus });
+        DB.leads[leadIndex].status = newStatus;
+        renderLeads();
+        showToast(`✅ Lead status updated to ${newStatus}`);
+      }
+  } catch(err) {
+      console.error("Lead Update Error:", err);
+      alert("❌ Failed to update lead: " + err.message);
   }
 }
 
-// 🔥 Firebase-Ready Utilities
+// ============================================================
+// FIREBASE-READY UTILITIES
+// ============================================================
 export async function runArchive() {
   if (!confirm(`Archive all 'New' leads older than ${CONFIG?.LEAD_ARCHIVE_DAYS || 30} days?`)) return;
   try {
@@ -183,7 +214,6 @@ export async function runCombo() {
   }
 }
 
-// ── Fallback stub for HTML button to prevent ReferenceErrors ──
 export function triggerGmailScan() {
   showToast('Gmail scanning is handled separately on the backend.', false);
 }
