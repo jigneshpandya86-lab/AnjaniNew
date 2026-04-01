@@ -1,11 +1,12 @@
 // ============================================================
 // CUSTOMER MANAGEMENT
 // ============================================================
+import { DB } from './state.js';
+import { db } from '../firebase-config.js';
+import { doc, setDoc, updateDoc } from 'firebase/firestore';
 import { DB, CONFIG } from './state.js';
 import { esc, showToast } from './utils.js';
 import { dispatch } from './engine.js'; // 🔥 Powered by the Central Sync Engine!
-import { db } from '../firebase-config.js';
-import { doc, setDoc, updateDoc } from 'firebase/firestore';
 export function renderCustomers(s) {
   const l = document.getElementById('list-customers');
   if (!l) return;
@@ -99,33 +100,33 @@ export function viewCust(id) {
 // ============================================================
 // 1. BULLETPROOF FORM OPENER
 // ============================================================
+// ============================================================
+// 1. BULLETPROOF FORM OPENER
+// ============================================================
 export function openCustForm(isEdit) {
   const modal = document.getElementById('modal-cust');
-  if (!modal) {
-      console.error("Modal ID 'modal-cust' not found in HTML!");
-      return;
-  }
+  if (!modal) return;
   
-  // Open the modal first
+  // Show the modal instantly
   modal.classList.remove('hidden');
   
-  const currentCustID = window._currentCustID || null;
-  
-  // Safe helper: Prevents app crashes if an input box is missing from the HTML
+  // Safe helper: prevents crashing if an input is missing
   const safeSet = (id, val) => { 
       const el = document.getElementById(id); 
       if (el) el.value = val; 
   };
 
-  if (isEdit && currentCustID) {
-    const c = DB.customers.find(x => x.id === currentCustID) || {};
+  const currentID = window._currentCustID || null;
+
+  if (isEdit && currentID) {
+    const c = DB.customers.find(x => x.id === currentID) || {};
     safeSet('new-id', c.id || ''); 
     safeSet('new-name', c.name || '');
     safeSet('new-mob', c.mobile || ''); 
     safeSet('new-map', c.map || '');
     safeSet('new-rate', c.rate || '150');
   } else {
-    // Adding a NEW Client
+    // Blank form for a New Client
     safeSet('new-id', ''); 
     safeSet('new-name', '');
     safeSet('new-mob', ''); 
@@ -135,12 +136,11 @@ export function openCustForm(isEdit) {
 }
 
 // ============================================================
-// 2. PURE FIREBASE SAVE (NO GOOGLE SCRIPT)
+// 2. DIRECT FIREBASE SAVE (BYPASSES THE QUEUE)
 // ============================================================
 export async function saveClient(e) {
   if (e) e.preventDefault();
   
-  // Safe helper to read values
   const safeGet = (id) => { 
       const el = document.getElementById(id); 
       return el ? el.value.trim() : ''; 
@@ -158,8 +158,7 @@ export async function saveClient(e) {
   }
 
   const isEdit = !!id;
-  // If it's a new client, generate a fresh ID
-  const finalId = id || 'C-' + Date.now();
+  const finalId = id || 'C-' + Date.now(); // Generate unique ID
 
   const data = { 
     id: finalId, 
@@ -170,32 +169,26 @@ export async function saveClient(e) {
     active: true 
   };
 
-  // Close the modal
+  // Close modal instantly
   const modal = document.getElementById('modal-cust');
   if (modal) modal.classList.add('hidden');
-  
-  showToast('⏳ Saving to live database...');
 
   try {
      const custRef = doc(db, 'customers', finalId);
      
      if (isEdit) {
-         // Update existing customer safely
          await updateDoc(custRef, data);
      } else {
-         // Create brand new customer (and set outstanding balance to 0)
          data.outstanding = 0;
          await setDoc(custRef, data, { merge: true });
      }
      
-     showToast('✅ Customer saved successfully!');
-     
-     // Refresh the UI if we were editing an existing client
+     // Optionally refresh the UI card
      if (isEdit && typeof viewCust === 'function') viewCust(finalId);
      
   } catch (error) {
-     console.error("Firebase Save Error:", error);
-     alert("❌ Failed to save: " + error.message);
+     console.error("Save Error:", error);
+     alert("❌ Failed to save client: " + error.message);
   }
 }
 // 🔥 Engine-Powered Active Toggle
