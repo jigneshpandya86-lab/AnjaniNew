@@ -62,7 +62,7 @@ jobs:
           data = data.replace('</manifest>', perms + '</manifest>');
           fs.writeFileSync(file, data);
           EOF
-          node inject-perms.js
+          node inject-perms.cjs
 
       - name: Fix Kotlin Duplicate Classes
         working-directory: ./android/app
