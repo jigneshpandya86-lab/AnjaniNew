@@ -2,16 +2,7 @@ import { DB } from './state.js';
 import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 
 // ======================================================================
-// MAIN DATA LOADER (WITH BULLETPROOF DATA GATE & PATIENCE LOOP)
-// ======================================================================
-// ======================================================================
-// MAIN DATA LOADER (WITH BULLETPROOF DATA GATE & PATIENCE LOOP)
-// ======================================================================
-// ======================================================================
-// MAIN DATA LOADER (WITH BULLETPROOF DATA GATE & STRICT CACHE)
-// ======================================================================
-// ======================================================================
-// MAIN DATA LOADER (WITH STRICT "ALL COLLECTIONS" DATA GATE)
+// MAIN DATA LOADER (STRICT LIVE-SYNC GATE)
 // ======================================================================
 export async function loadData() {
   return new Promise(async (resolve) => {
@@ -32,11 +23,11 @@ export async function loadData() {
     };
 
     // ======================================================================
-    // STEP 1: INSTANT CACHE LOAD
+    // STEP 1: LOAD CACHE (BUT KEEP THE GATE LOCKED)
     // ======================================================================
     const cached = window.AnjaniCache ? await window.AnjaniCache.get(CACHE_KEY) : null;
     
-    if (cached && cached.orders && cached.orders.length > 0) {
+    if (cached && cached.orders) {
       DB.customers = cached.customers || []; 
       DB.orders    = cached.orders || [];
       DB.payments  = cached.payments || []; 
@@ -50,14 +41,17 @@ export async function loadData() {
       if (typeof window._renderDashboard === 'function') window._renderDashboard();
       
       if (connText) {
-        connText.innerText = 'Syncing in background...';
+        connText.innerText = 'Connecting to live database...';
         connText.classList.add('animate-pulse'); 
       }
-      unlockGate();
+      
+      // 🔥 WE NO LONGER UNLOCK THE GATE HERE. 
+      // The Splash Screen stays frozen until Firebase connects!
     } else {
       if (connText) connText.innerText = 'First time setup, downloading...';
     }
 
+    // Only unlock instantly if the phone literally has airplane mode turned on
     if (!navigator.onLine) {
       if (connText) {
         connText.innerText = 'Offline — Using cached data';
@@ -68,7 +62,7 @@ export async function loadData() {
     }
 
     // ======================================================================
-    // STEP 2: SILENT BACKGROUND SYNC (FIREBASE)
+    // STEP 2: WAIT FOR FIREBASE (THE REAL GATEKEEPER)
     // ======================================================================
     let checkCount = 0;
     
@@ -78,7 +72,7 @@ export async function loadData() {
         
         window.setupRealtime(async function(eventName) {
           
-          // 🔥 THE FIX: ONLY unlock when EVERY single collection has arrived!
+          // 🔥 ONLY unlock the screen when Firebase confirms ALL data is downloaded!
           if (eventName === '__initial_load_complete__') {
               unlockGate();
           }
@@ -92,6 +86,7 @@ export async function loadData() {
           if (typeof window._renderLeads === 'function') window._renderLeads();
           if (typeof window._renderDashboard === 'function') window._renderDashboard();
 
+          // Save the fresh live data to cache
           if (window.AnjaniCache && DB.orders && DB.orders.length > 0) {
             await window.AnjaniCache.set(CACHE_KEY, {
               customers: DB.customers, orders: DB.orders, payments: DB.payments,
@@ -101,12 +96,14 @@ export async function loadData() {
         });
         
       } else if (checkCount > 40) {
+        // Fail-safe: If Firebase is totally broken after 4 seconds, drop the screen so you can work offline.
         clearInterval(checkFirebase);
         console.warn("setupRealtime took too long to load.");
         unlockGate(); 
       }
       checkCount++;
     }, 100);
+
   });
 }
 // ======================================================================
