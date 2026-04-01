@@ -189,14 +189,13 @@ async function startApp() {
 
     const auth = getAuth();
     await new Promise((resolve) => {
-      const unsubscribe = onAuthStateChanged(auth, (user) => {
-        if (user) {
-          resolve(); 
-          unsubscribe();
-        }
-      });
-      setTimeout(() => { resolve(); }, 3000); 
-    });
+  const unsubscribe = onAuthStateChanged(auth, (user) => {
+    if (user) {
+      unsubscribe();
+      resolve(user);
+    }
+  });
+});
 
     try {
       if (typeof window._loadData === 'function') {
